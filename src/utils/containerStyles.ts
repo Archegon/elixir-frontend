@@ -84,11 +84,63 @@ export const containerStyles = {
 
   // Modal container
   modal: (theme: Theme) => ({
-    backgroundColor: `${theme.colors.secondary}95`,
-    border: `1px solid ${theme.colors.border}70`,
-    borderRadius: '0.5rem', // rounded-lg equivalent
+    backgroundColor: theme.colors.secondary,
+    border: `1px solid ${theme.colors.border}60`,
+    borderRadius: '1rem', // rounded-xl equivalent
     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', // shadow-2xl equivalent
-    backdropFilter: 'blur(16px)'
+    backdropFilter: 'blur(12px)',
+    maxHeight: 'calc(100vh - 8rem)', // Prevent overflow
+    overflow: 'hidden' // Container shouldn't scroll
+  }),
+
+  // Modal content (scrollable area)
+  modalContent: (theme: Theme) => ({
+    maxHeight: 'calc(100vh - 16rem)', // Account for header and footer
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const
+  }),
+
+  // Section container for modal sections
+  section: (theme: Theme) => ({
+    backgroundColor: `${theme.colors.tertiary}60`,
+    border: `1px solid ${theme.colors.border}30`,
+    borderRadius: '0.75rem', // rounded-xl equivalent
+    padding: '1.5rem' // p-6 equivalent
+  }),
+
+  // Input styling (Apple-style)
+  input: (theme: Theme) => ({
+    backgroundColor: theme.colors.primary,
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '0.5rem', // rounded-lg equivalent
+    padding: '0.75rem 1rem', // py-3 px-4 equivalent
+    color: theme.colors.textPrimary,
+    fontSize: '1rem',
+    outline: 'none',
+    transition: 'border-color 0.2s ease-in-out',
+    '&:focus': {
+      borderColor: theme.colors.brand
+    }
+  }),
+
+  // Range slider styling
+  slider: (theme: Theme) => ({
+    appearance: 'none' as const,
+    height: '0.5rem', // h-2
+    borderRadius: '0.25rem', // rounded
+    backgroundColor: theme.colors.border,
+    cursor: 'pointer' as const,
+    outline: 'none',
+    '&::-webkit-slider-thumb': {
+      appearance: 'none' as const,
+      height: '1.25rem', // h-5
+      width: '1.25rem', // w-5
+      borderRadius: '50%',
+      backgroundColor: theme.colors.brand,
+      cursor: 'pointer' as const,
+      border: '2px solid #ffffff',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+    }
   }),
 
   // Alert container

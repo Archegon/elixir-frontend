@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../types/chamber';
 import { ThemeType } from '../../types/chamber';
 import { containerStyles, containerClasses } from '../../utils/containerStyles';
+import ModalTemplate from './ModalTemplate';
 
 interface ThemeSelectorModalProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ const ThemePreview: React.FC<{ theme: Theme; isActive: boolean; onSelect: () => 
   return (
     <button
       onClick={onSelect}
-      className={`w-full p-4 rounded-lg border-2 transition-all duration-200 hover:scale-105 active:scale-95 ${
+      className={`w-full p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 active:scale-95 ${
         isActive 
           ? 'border-blue-500 ring-2 ring-blue-500/20 transform scale-105' 
           : 'border-gray-300 hover:border-gray-400'
@@ -109,31 +110,6 @@ const ThemePreview: React.FC<{ theme: Theme; isActive: boolean; onSelect: () => 
 
 const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, onClose }) => {
   const { currentTheme, setTheme, themes } = useTheme();
-  const [isVisible, setIsVisible] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsVisible(true);
-      setIsAnimating(true);
-      setTimeout(() => setIsAnimating(false), 10);
-    } else if (isVisible) {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setIsVisible(false);
-        setIsAnimating(false);
-      }, 200);
-    }
-  }, [isOpen, isVisible]);
-
-  const handleClose = () => {
-    setIsAnimating(true);
-    setTimeout(() => {
-      onClose();
-    }, 200);
-  };
-
-  if (!isVisible) return null;
 
   const handleThemeSelect = (themeType: ThemeType) => {
     setTheme(themeType);
@@ -142,37 +118,33 @@ const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, onClose
   const darkThemes = [ThemeType.DARK_SLATE, ThemeType.DARK_BLUE, ThemeType.DARK_PURPLE, ThemeType.DARK_APPLE];
   const lightThemes = [ThemeType.LIGHT_CLEAN, ThemeType.LIGHT_WARM, ThemeType.LIGHT_BLUE, ThemeType.LIGHT_APPLE];
 
-  return (
-    <div 
-      className={`fixed inset-0 flex items-center justify-center z-50 transition-all duration-200 ${
-        isAnimating ? 'bg-black/0' : 'bg-black/20 backdrop-blur-sm'
-      }`}
-      onClick={handleClose}
-    >
-      <div 
-        className={`rounded-lg p-6 w-[900px] max-h-[700px] border shadow-2xl backdrop-blur-md transition-all duration-200 ${
-          isAnimating ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
-        }`}
-        style={containerStyles.modal(currentTheme)}
-        onClick={(e) => e.stopPropagation()}
+  const footer = (
+    <div className="flex justify-end">
+      <button
+        onClick={onClose}
+        className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        style={{
+          backgroundColor: currentTheme.colors.brand,
+          border: `1px solid ${currentTheme.colors.brand}`,
+          color: '#ffffff'
+        }}
       >
-        {/* Modal Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 
-            className="text-2xl font-bold"
-            style={{ color: currentTheme.colors.textPrimary }}
-          >
-            Theme Selection
-          </h2>
-          <button 
-            onClick={handleClose}
-            className="text-2xl hover:opacity-70 transition-all duration-200 hover:scale-110 active:scale-95"
-            style={{ color: currentTheme.colors.textSecondary }}
-          >
-            ×
-          </button>
-        </div>
+        Done
+      </button>
+    </div>
+  );
 
+  return (
+    <ModalTemplate
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Theme Selection"
+      subtitle="Choose your preferred visual theme"
+      width="w-[900px]"
+      height="max-h-[700px]"
+      footer={footer}
+    >
+      <div className="p-6">
         {/* Theme Categories */}
         <div className="space-y-8">
           
@@ -217,20 +189,8 @@ const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, onClose
           </div>
 
         </div>
-
-        {/* Modal Footer */}
-        <div className="flex justify-end mt-8 pt-4" style={{ borderTop: `1px solid ${currentTheme.colors.border}` }}>
-          <button
-            onClick={handleClose}
-            className={`${containerClasses.button} transition-all duration-200 hover:scale-105 active:scale-95`}
-            style={containerStyles.button(currentTheme, 'primary')}
-          >
-            Done
-          </button>
-        </div>
-
       </div>
-    </div>
+    </ModalTemplate>
   );
 };
 

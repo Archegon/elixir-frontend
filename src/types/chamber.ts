@@ -160,6 +160,9 @@ export interface ModeConfiguration {
   
   // Session duration (60-120 minutes)
   set_duration: number;
+  
+  // Pressure set point (1.4-3.0 ATA)
+  pressure_set_point: number;
 }
 
 export type TreatmentMode = 'mode_rest' | 'mode_health' | 'mode_professional' | 'mode_custom' | 'mode_o2_100' | 'mode_o2_120';

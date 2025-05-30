@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { EnvironmentalControls } from '../../types/chamber';
 import { FanMode } from '../../types/chamber';
 import { useTheme } from '../../contexts/ThemeContext';
-import { containerStyles, containerClasses } from '../../utils/containerStyles';
-import { BookOpen, DoorOpen, Lightbulb, Flashlight } from 'lucide-react';
+import { containerStyles } from '../../utils/containerStyles';
+import ModalTemplate from '../ui/ModalTemplate';
+import { BookOpen, DoorOpen, Lightbulb, Flashlight, Snowflake, Fan } from 'lucide-react';
 
 interface EnvironmentalControlsModalProps {
   isOpen: boolean;
@@ -19,41 +20,16 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
   onUpdateControls
 }) => {
   const { currentTheme } = useTheme();
-  const [isVisible, setIsVisible] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
   const [localControls, setLocalControls] = useState<EnvironmentalControls>(controls);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsVisible(true);
-      setIsAnimating(true);
-      setTimeout(() => setIsAnimating(false), 10);
-    } else if (isVisible) {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setIsVisible(false);
-        setIsAnimating(false);
-      }, 200);
-    }
-  }, [isOpen, isVisible]);
-
-  const handleClose = () => {
-    setIsAnimating(true);
-    setTimeout(() => {
-      onClose();
-    }, 200);
-  };
-
-  if (!isVisible) return null;
 
   const handleSave = () => {
     onUpdateControls(localControls);
-    handleClose();
+    onClose();
   };
 
   const handleCancel = () => {
     setLocalControls(controls); // Reset to original values
-    handleClose();
+    onClose();
   };
 
   const updateAirConditioner = (updates: Partial<typeof localControls.airConditioner>) => {
@@ -77,38 +53,44 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
     }));
   };
 
-  return (
-    <div 
-      className={`fixed inset-0 flex items-center justify-center z-50 transition-all duration-200 ${
-        isAnimating ? 'bg-black/0' : 'bg-black/20 backdrop-blur-sm'
-      }`}
-      onClick={handleClose}
-    >
-      <div 
-        className={`rounded-lg p-6 w-[800px] max-h-[600px] border shadow-2xl backdrop-blur-md transition-all duration-200 ${
-          isAnimating ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
-        }`}
-        style={containerStyles.modal(currentTheme)}
-        onClick={(e) => e.stopPropagation()}
+  const footer = (
+    <div className="flex justify-end gap-3">
+      <button
+        onClick={handleCancel}
+        className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        style={{
+          backgroundColor: `${currentTheme.colors.border}20`,
+          border: `1px solid ${currentTheme.colors.border}40`,
+          color: currentTheme.colors.textPrimary
+        }}
       >
-        
-        {/* Modal Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 
-            className="text-2xl font-bold"
-            style={{ color: currentTheme.colors.textPrimary }}
-          >
-            Environmental Controls
-          </h2>
-          <button 
-            onClick={handleClose}
-            className="text-2xl hover:opacity-70 transition-all duration-200 hover:scale-110 active:scale-95"
-            style={{ color: currentTheme.colors.textSecondary }}
-          >
-            ×
-          </button>
-        </div>
+        Cancel
+      </button>
+      <button
+        onClick={handleSave}
+        className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        style={{
+          backgroundColor: currentTheme.colors.brand,
+          border: `1px solid ${currentTheme.colors.brand}`,
+          color: '#ffffff'
+        }}
+      >
+        Apply Changes
+      </button>
+    </div>
+  );
 
+  return (
+    <ModalTemplate
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Environmental Controls"
+      subtitle="Manage chamber climate and lighting settings"
+      width="w-[900px]"
+      height="max-h-[600px]"
+      footer={footer}
+    >
+      <div className="p-6">
         {/* Controls Grid */}
         <div className="grid grid-cols-2 gap-6">
           
@@ -116,16 +98,21 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
           <div className="space-y-6">
             
             {/* Air Conditioner */}
-            <div 
-              className="rounded-lg p-4"
-              style={{ backgroundColor: currentTheme.colors.tertiary }}
-            >
-              <h3 
-                className="text-lg font-semibold mb-4"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                Air Conditioning
-              </h3>
+            <div style={containerStyles.section(currentTheme)}>
+              <div className="flex items-center gap-3 mb-4">
+                <div 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
+                >
+                  <Snowflake size={18} style={{ color: currentTheme.colors.brand }} />
+                </div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  Air Conditioning
+                </h3>
+              </div>
               
               <div className="space-y-4">
                 {/* AC Enable/Disable */}
@@ -133,11 +120,12 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
                   <label style={{ color: currentTheme.colors.textSecondary }}>AC System</label>
                   <button
                     onClick={() => updateAirConditioner({ enabled: !localControls.airConditioner.enabled })}
-                    className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                     style={{
                       backgroundColor: localControls.airConditioner.enabled 
-                        ? currentTheme.colors.success 
-                        : currentTheme.colors.border,
+                        ? `${currentTheme.colors.brand}20` 
+                        : `${currentTheme.colors.border}20`,
+                      border: `1px solid ${localControls.airConditioner.enabled ? currentTheme.colors.brand : currentTheme.colors.border}40`,
                       color: currentTheme.colors.textPrimary
                     }}
                   >
@@ -153,54 +141,63 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
                       onClick={() => updateAirConditioner({ 
                         temperatureSetPoint: Math.max(16, localControls.airConditioner.temperatureSetPoint - 1)
                       })}
-                      className="px-3 py-2 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95"
+                      className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
                       style={{ 
-                        backgroundColor: currentTheme.colors.info,
-                        color: currentTheme.colors.textPrimary
+                        backgroundColor: `${currentTheme.colors.brand}20`,
+                        border: `1px solid ${currentTheme.colors.brand}40`,
+                        color: currentTheme.colors.brand
                       }}
                     >
                       -
                     </button>
-                    <span 
-                      className="text-2xl font-bold min-w-[60px] text-center"
-                      style={{ color: currentTheme.colors.textPrimary }}
-                    >
-                      {localControls.airConditioner.temperatureSetPoint}°C
-                    </span>
+                    <div className="flex-1 text-center">
+                      <div 
+                        className="text-2xl font-bold font-mono"
+                        style={{ color: currentTheme.colors.textPrimary }}
+                      >
+                        {localControls.airConditioner.temperatureSetPoint}°C
+                      </div>
+                      <div 
+                        className="text-xs"
+                        style={{ color: currentTheme.colors.textSecondary }}
+                      >
+                        Current: {localControls.airConditioner.currentTemperature}°C
+                      </div>
+                    </div>
                     <button
                       onClick={() => updateAirConditioner({ 
                         temperatureSetPoint: Math.min(30, localControls.airConditioner.temperatureSetPoint + 1)
                       })}
-                      className="px-3 py-2 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95"
+                      className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
                       style={{ 
-                        backgroundColor: currentTheme.colors.info,
-                        color: currentTheme.colors.textPrimary
+                        backgroundColor: `${currentTheme.colors.brand}20`,
+                        border: `1px solid ${currentTheme.colors.brand}40`,
+                        color: currentTheme.colors.brand
                       }}
                     >
                       +
                     </button>
                   </div>
-                  <p 
-                    className="text-xs"
-                    style={{ color: currentTheme.colors.textSecondary }}
-                  >
-                    Current: {localControls.airConditioner.currentTemperature}°C
-                  </p>
                 </div>
               </div>
             </div>
 
             {/* Fan Controls */}
-            <div 
-              className="rounded-lg p-4"
-              style={{ backgroundColor: currentTheme.colors.tertiary }}
-            >
-              <h3 
-                className="text-lg font-semibold mb-4"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                Fan Control
-              </h3>
+            <div style={containerStyles.section(currentTheme)}>
+              <div className="flex items-center gap-3 mb-4">
+                <div 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
+                >
+                  <Fan size={18} style={{ color: currentTheme.colors.brand }} />
+                </div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  Fan Control
+                </h3>
+              </div>
               
               <div className="space-y-4">
                 {/* Fan Mode */}
@@ -211,11 +208,12 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
                       <button
                         key={mode}
                         onClick={() => updateFan({ mode })}
-                        className="px-3 py-2 rounded-lg font-medium transition-all duration-200 capitalize hover:scale-105 active:scale-95"
+                        className="px-3 py-2 rounded-lg font-medium transition-all duration-200 capitalize hover:scale-[1.02] active:scale-[0.98]"
                         style={{
                           backgroundColor: localControls.fan.mode === mode 
-                            ? currentTheme.colors.brand 
-                            : currentTheme.colors.border,
+                            ? `${currentTheme.colors.brand}20` 
+                            : `${currentTheme.colors.border}20`,
+                          border: `1px solid ${localControls.fan.mode === mode ? currentTheme.colors.brand : currentTheme.colors.border}40`,
                           color: currentTheme.colors.textPrimary
                         }}
                       >
@@ -249,84 +247,69 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
 
           {/* Right Column - Lighting Controls */}
           <div>
-            <div 
-              className="rounded-lg p-4"
-              style={{ backgroundColor: currentTheme.colors.tertiary }}
-            >
-              <h3 
-                className="text-lg font-semibold mb-4"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                Lighting Controls
-              </h3>
+            <div style={containerStyles.section(currentTheme)}>
+              <div className="flex items-center gap-3 mb-4">
+                <div 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
+                >
+                  <Lightbulb size={18} style={{ color: currentTheme.colors.brand }} />
+                </div>
+                <h3 
+                  className="text-lg font-semibold"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  Lighting Controls
+                </h3>
+              </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {[
                   { key: 'readingLights', label: 'Reading Lights', icon: BookOpen },
                   { key: 'doorLights', label: 'Door Lights', icon: DoorOpen },
                   { key: 'ceilingLights', label: 'Ceiling Lights', icon: Lightbulb },
                   { key: 'exteriorLights', label: 'Exterior Lights', icon: Flashlight }
                 ].map(({ key, label, icon: Icon }) => (
-                  <div 
-                    key={key} 
-                    className="flex items-center justify-between p-3 rounded-lg"
-                    style={{ backgroundColor: currentTheme.colors.border }}
+                  <button
+                    key={key}
+                    onClick={() => updateLighting(
+                      key as keyof typeof localControls.lighting, 
+                      !localControls.lighting[key as keyof typeof localControls.lighting]
+                    )}
+                    className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      backgroundColor: localControls.lighting[key as keyof typeof localControls.lighting]
+                        ? `${currentTheme.colors.brand}20` 
+                        : `${currentTheme.colors.border}20`,
+                      border: `1px solid ${localControls.lighting[key as keyof typeof localControls.lighting] ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                      color: currentTheme.colors.textPrimary
+                    }}
                   >
-                    <div className="flex items-center space-x-3">
-                      <Icon size={20} style={{ color: currentTheme.colors.textSecondary }} />
-                      <label 
-                        className="font-medium"
-                        style={{ color: currentTheme.colors.textPrimary }}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Icon size={20} style={{ color: currentTheme.colors.textSecondary }} />
+                        <span className="font-medium">{label}</span>
+                      </div>
+                      <span 
+                        className="text-sm font-medium"
+                        style={{ 
+                          color: localControls.lighting[key as keyof typeof localControls.lighting] 
+                            ? currentTheme.colors.brand 
+                            : currentTheme.colors.textSecondary 
+                        }}
                       >
-                        {label}
-                      </label>
+                        {localControls.lighting[key as keyof typeof localControls.lighting] ? 'ON' : 'OFF'}
+                      </span>
                     </div>
-                    <button
-                      onClick={() => updateLighting(
-                        key as keyof typeof localControls.lighting, 
-                        !localControls.lighting[key as keyof typeof localControls.lighting]
-                      )}
-                      className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                      style={{
-                        backgroundColor: localControls.lighting[key as keyof typeof localControls.lighting]
-                          ? currentTheme.colors.warning
-                          : currentTheme.colors.borderLight,
-                        color: currentTheme.colors.textPrimary
-                      }}
-                    >
-                      {localControls.lighting[key as keyof typeof localControls.lighting] ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
 
         </div>
-
-        {/* Modal Footer */}
-        <div 
-          className="flex justify-end space-x-4 mt-6 pt-4"
-          style={{ borderTop: `1px solid ${currentTheme.colors.border}` }}
-        >
-          <button
-            onClick={handleCancel}
-            className={`${containerClasses.button} transition-all duration-200 hover:scale-105 active:scale-95`}
-            style={containerStyles.button(currentTheme, 'secondary')}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className={`${containerClasses.button} transition-all duration-200 hover:scale-105 active:scale-95`}
-            style={containerStyles.button(currentTheme, 'primary')}
-          >
-            Apply Changes
-          </button>
-        </div>
-
       </div>
-    </div>
+    </ModalTemplate>
   );
 };
 
