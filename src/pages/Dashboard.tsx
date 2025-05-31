@@ -6,11 +6,11 @@ import EnvironmentalControlsModal from '../components/chamber/EnvironmentalContr
 import ModeSelectionModal from '../components/chamber/ModeSelectionModal';
 import ThemeSelectorModal from '../components/ui/ThemeSelectorModal';
 import PressureChart from '../components/charts/PressureChart';
-import DashboardHeader from '../components/dashboard/DashboardHeader';
+import SideNavbar from '../components/dashboard/SideNavbar';
 import EnvironmentalReadingsCard from '../components/dashboard/EnvironmentalReadingsCard';
 import SessionInfoCard from '../components/dashboard/SessionInfoCard';
 import AlertsCard from '../components/dashboard/AlertsCard';
-import ControlsCard from '../components/dashboard/ControlsCard';
+import ElixirLogo from '../components/ui/ElixirLogo';
 
 const Dashboard: React.FC = () => {
   const { currentTheme } = useTheme();
@@ -80,7 +80,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div 
-      className="h-screen w-screen overflow-hidden"
+      className="h-screen w-screen overflow-hidden flex"
       style={{ 
         backgroundColor: currentTheme.colors.primary,
         color: currentTheme.colors.textPrimary,
@@ -90,40 +90,48 @@ const Dashboard: React.FC = () => {
         height: `${100 / scaleFactor}vh`
       }}
     >
-      <DashboardHeader onThemeModalOpen={() => setIsThemeModalOpen(true)} />
+      {/* Side Navbar */}
+      <SideNavbar onThemeModalOpen={() => setIsThemeModalOpen(true)} onEnvControls={() => setIsEnvModalOpen(true)} />
 
       {/* Main Content */}
-      <main className="p-6 overflow-hidden" style={{ height: 'calc(100% - 4rem)' }}>
+      <main className="flex-1 p-6 overflow-hidden">
         
-        {/* Main Grid */}
-        <div className="grid grid-cols-12 gap-6">
-          
-          {/* Left Section - Metrics */}
-          <div className="col-span-12 space-y-6">
-            
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-4 gap-4">
-              <EnvironmentalReadingsCard />
-              <SessionInfoCard />
-            </div>
+        {/* Page Header */}
+        <div className="mb-6">
+          <div className="flex items-center space-x-3">
+            <ElixirLogo size="lg" />
+          </div>
+          <div>
+              <p 
+                className="text-sm"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
+                Hyperbaric Chamber Management
+              </p>
+          </div>
+        </div>
 
-            {/* Pressure Chart and Alerts Grid */}
-            <div className="grid grid-cols-3 gap-4">
-              
+        {/* Main Grid */}
+        <div className="grid grid-cols-12 gap-2">
+          
+          {/* Metrics Grid */}
+          <div className="col-span-12">
+            <div className="grid grid-cols-4 gap-4 mb-2">
+              <EnvironmentalReadingsCard onClimateControl={() => setIsEnvModalOpen(true)} />
+              <SessionInfoCard onModeSelect={() => setIsModeModalOpen(true)} />
+            </div>
+          </div>
+
+          {/* Pressure Chart and Alerts Grid */}
+          <div className="col-span-12">
+            <div className="grid grid-cols-3 gap-4 mb-2">
               {/* Pressure Chart */}
               <div className="col-span-2">
                 <PressureChart />
               </div>
-
               <AlertsCard />
             </div>
-
           </div>
-
-          <ControlsCard 
-            onModeSelect={() => setIsModeModalOpen(true)}
-            onEnvControls={() => setIsEnvModalOpen(true)}
-          />
 
         </div>
 

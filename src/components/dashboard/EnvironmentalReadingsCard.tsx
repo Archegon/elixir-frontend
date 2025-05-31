@@ -1,9 +1,21 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, getProgressBarStyle } from '../../utils/containerStyles';
+import { Lightbulb, Thermometer } from 'lucide-react';
 
-const EnvironmentalReadingsCard: React.FC = () => {
+interface EnvironmentalReadingsCardProps {
+  onClimateControl?: () => void;
+}
+
+const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ onClimateControl }) => {
   const { currentTheme } = useTheme();
+
+  const lightingStatus = [
+    { name: 'Reading', status: 'on', color: currentTheme.colors.warning },
+    { name: 'Door', status: 'on', color: currentTheme.colors.success },
+    { name: 'Ceiling', status: 'off', color: currentTheme.colors.textSecondary },
+    { name: 'Exterior', status: 'on', color: currentTheme.colors.info },
+  ];
 
   return (
     <div 
@@ -15,18 +27,18 @@ const EnvironmentalReadingsCard: React.FC = () => {
           className="text-lg font-semibold mb-1"
           style={{ color: currentTheme.colors.textPrimary }}
         >
-          Environmental Readings
+          Chamber Status
         </h3>
         <p 
           className="text-sm"
           style={{ color: currentTheme.colors.textSecondary }}
         >
-          Chamber conditions
+          Environmental conditions & lighting
         </p>
       </div>
 
       {/* Readings Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         
         {/* Pressure */}
         <div className="space-y-2">
@@ -168,6 +180,77 @@ const EnvironmentalReadingsCard: React.FC = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Lighting Status - Improved Layout */}
+      <div className="pt-3 border-t space-y-3" style={{ borderColor: currentTheme.colors.border }}>
+        <div className="flex items-center justify-between">
+          <h4 
+            className="text-sm font-semibold"
+            style={{ color: currentTheme.colors.textSecondary }}
+          >
+            Lighting Status
+          </h4>
+          <div 
+            className="px-2 py-1 text-xs font-medium rounded-full"
+            style={containerStyles.statusBadge(currentTheme, 'success')}
+          >
+            3 Active
+          </div>
+        </div>
+        
+        {/* Lighting Grid - 2x2 Layout */}
+        <div className="grid grid-cols-2 gap-3">
+          {lightingStatus.map((light, index) => (
+            <div 
+              key={index} 
+              className="flex items-center justify-between p-2 rounded-lg"
+              style={{ 
+                backgroundColor: `${currentTheme.colors.primary}80`,
+                border: `1px solid ${currentTheme.colors.border}`
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                <Lightbulb 
+                  size={14} 
+                  style={{ 
+                    color: light.status === 'on' ? light.color : currentTheme.colors.textSecondary,
+                    opacity: light.status === 'on' ? 1 : 0.5
+                  }} 
+                />
+                <span 
+                  className="text-xs font-medium"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
+                  {light.name}
+                </span>
+              </div>
+              <div 
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ 
+                  backgroundColor: light.status === 'on' ? light.color : `${currentTheme.colors.textSecondary}40`,
+                  boxShadow: light.status === 'on' ? `0 0 6px ${light.color}50` : 'none'
+                }}
+              ></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Climate Control Button */}
+        {onClimateControl && (
+          <button
+            onClick={onClimateControl}
+            className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              backgroundColor: `${currentTheme.colors.info}20`,
+              color: currentTheme.colors.info,
+              border: `1px solid ${currentTheme.colors.info}30`
+            }}
+          >
+            <Thermometer size={16} />
+            <span>Climate Control</span>
+          </button>
+        )}
       </div>
     </div>
   );

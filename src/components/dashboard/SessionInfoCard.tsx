@@ -1,8 +1,13 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, containerClasses, getProgressBarStyle } from '../../utils/containerStyles';
+import { BarChart3, Gauge, Play, MessageCircle } from 'lucide-react';
 
-const SessionInfoCard: React.FC = () => {
+interface SessionInfoCardProps {
+  onModeSelect?: () => void;
+}
+
+const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
   const { currentTheme } = useTheme();
 
   return (
@@ -49,7 +54,7 @@ const SessionInfoCard: React.FC = () => {
       </div>
 
       {/* Operating Mode */}
-      <div className="space-y-3">
+      <div className="space-y-3 mb-4">
         <div>
           <p 
             className="text-xs font-medium mb-1"
@@ -102,6 +107,64 @@ const SessionInfoCard: React.FC = () => {
           >
             Continuous
           </div>
+        </div>
+      </div>
+
+      {/* Control Buttons */}
+      <div className="space-y-3">
+        {/* Change Mode Button */}
+        {onModeSelect && (
+          <button 
+            onClick={onModeSelect}
+            className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              backgroundColor: currentTheme.colors.brand,
+              color: '#ffffff',
+              border: `1px solid ${currentTheme.colors.brand}`
+            }}
+          >
+            <BarChart3 size={16} />
+            <span>Change Mode</span>
+          </button>
+        )}
+
+        {/* Session Control Buttons Grid */}
+        <div className="grid grid-cols-3 gap-3">
+          <button 
+            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              backgroundColor: currentTheme.colors.primary,
+              color: currentTheme.colors.brand,
+              border: `1px solid ${currentTheme.colors.brand}`
+            }}
+          >
+            <Play size={14} />
+            <span>Stop/Start</span>
+          </button>
+          
+          <button 
+            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              backgroundColor: `${currentTheme.colors.warning}15`,
+              color: currentTheme.colors.warning,
+              border: `1px solid ${currentTheme.colors.warning}30`
+            }}
+          >
+            <Gauge size={14} />
+            <span>Equalise</span>
+          </button>
+          
+          <button 
+            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              backgroundColor: currentTheme.colors.primary,
+              color: currentTheme.colors.textSecondary,
+              border: `1px solid ${currentTheme.colors.border}`
+            }}
+          >
+            <MessageCircle size={14} />
+            <span>Intercomms</span>
+          </button>
         </div>
       </div>
     </div>
