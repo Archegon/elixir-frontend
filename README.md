@@ -67,6 +67,59 @@ Before you begin, ensure you have the following installed on your machine:
    
    Navigate to [http://localhost:5173](http://localhost:5173) to view the control panel.
 
+## 🍓 Raspberry Pi Setup
+
+### Installing Node.js on Raspberry Pi
+
+For production deployment on Raspberry Pi (aarch64), follow these steps to install Node.js v22.16.0:
+
+```bash
+# 1. Navigate to home directory
+cd ~
+
+# 2. Download Node.js v22.16.0 for aarch64
+wget https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-arm64.tar.xz
+
+# 3. Extract the archive
+tar -xf node-v22.16.0-linux-arm64.tar.xz
+
+# 4. Install Node.js by copying to /usr/local
+sudo cp -r node-v22.16.0-linux-arm64/{bin,include,lib,share} /usr/local/
+
+# 5. Verify installation
+node -v
+npm -v
+```
+
+**Expected Output:**
+```
+v22.16.0
+10.x.x
+```
+
+### Additional Raspberry Pi Configuration
+
+After installing Node.js:
+
+1. **Clone and setup the frontend**
+   ```bash
+   git clone <repository-url>
+   cd elixir-frontend
+   npm install
+   ```
+
+2. **Configure environment for Pi**
+   ```bash
+   cp config.example.env .env.local
+   # Edit .env.local with your specific configuration
+   ```
+
+3. **Build for production**
+   ```bash
+   npm run build
+   npm run preview
+   ```
+
 ## 📜 Available Scripts
 
 In the project directory, you can run:
