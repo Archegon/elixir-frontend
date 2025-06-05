@@ -69,14 +69,17 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   };
 
   const getOxygenData = () => {
-    if (!plcData) return { level: 0, flow: 0, status: 'Unknown' };
+    if (!plcData) return { level: 0, status: 'Unknown' };
     
     const level = plcData.sensors.ambient_o2;
-    let status = 'Optimal';
-    if (level < 95) status = 'Low';
-    else if (level > 100) status = 'High';
+    let status = 'Safe';
     
-    return { level, flow: 15, status }; // Flow is placeholder - add to PLC if available
+    // Health hazard thresholds: below 20% or above 25% is dangerous
+    if (level < 20) status = 'Low Hazard';
+    else if (level > 25) status = 'High Hazard';
+    else status = 'Safe'; // 20-25% is safe range
+    
+    return { level, status };
   };
 
   const getTemperatureData = () => {
@@ -238,13 +241,12 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-sm font-semibold"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Oxygen
+              Ambient O₂
             </h4>
             <div 
               className="px-2 py-1 text-xs font-medium rounded-full"
               style={containerStyles.statusBadge(currentTheme, 
-                oxygenData.status === 'Optimal' ? 'success' : 
-                oxygenData.status === 'Low' ? 'warning' : 'danger'
+                oxygenData.status === 'Safe' ? 'success' : 'danger'
               )}
             >
               {oxygenData.status}
@@ -261,16 +263,14 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-xs"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Flow: {oxygenData.flow} L/min
+              Safe: 20-25% ambient
             </p>
           </div>
           <div style={getProgressBarStyle(currentTheme, oxygenData.level, 
-            oxygenData.status === 'Optimal' ? currentTheme.colors.success : 
-            oxygenData.status === 'Low' ? currentTheme.colors.warning : currentTheme.colors.danger
+            oxygenData.status === 'Safe' ? currentTheme.colors.success : currentTheme.colors.danger
           ).container}>
             <div style={getProgressBarStyle(currentTheme, oxygenData.level, 
-              oxygenData.status === 'Optimal' ? currentTheme.colors.success : 
-              oxygenData.status === 'Low' ? currentTheme.colors.warning : currentTheme.colors.danger
+              oxygenData.status === 'Safe' ? currentTheme.colors.success : currentTheme.colors.danger
             ).fill}></div>
           </div>
         </div>
