@@ -4,6 +4,7 @@ import { containerStyles, getProgressBarStyle } from '../../utils/containerStyle
 import { Lightbulb, Thermometer, Wifi, WifiOff } from 'lucide-react';
 import apiService from '../../services/api.service';
 import type { PLCStatus } from '../../config/api-endpoints';
+import { CONNECTION_CONFIG } from '../../config/connection.config';
 
 interface EnvironmentalReadingsCardProps {
   onClimateControl?: () => void;
@@ -18,6 +19,9 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   useEffect(() => {
     // Subscribe to WebSocket status updates
     const handleStatusUpdate = (data: PLCStatus) => {
+      if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
+        console.log('📊 Received PLC data:', data);
+      }
       setPlcData(data);
       setLastUpdate(new Date());
     };
@@ -55,10 +59,10 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
 
   // Helper functions to get real-time data
   const getPressureData = () => {
-    if (!plcData) return { current: 0, target: 0, percentage: 0, status: 'Unknown' };
+    if (!plcData || !plcData.pressure) return { current: 0, target: 0, percentage: 0, status: 'No Data' };
     
-    const current = plcData.pressure.internal_pressure_1;
-    const target = plcData.pressure.setpoint;
+    const current = plcData.pressure.internal_pressure_1 || 0;
+    const target = plcData.pressure.setpoint || 0;
     const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
     
     let status = 'Normal';
@@ -69,9 +73,9 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   };
 
   const getOxygenData = () => {
-    if (!plcData) return { level: 0, status: 'Unknown' };
+    if (!plcData || !plcData.sensors) return { level: 0, status: 'No Data' };
     
-    const level = plcData.sensors.ambient_o2;
+    const level = plcData.sensors.ambient_o2 || 0;
     let status = 'Safe';
     
     // Health hazard thresholds: below 20% or above 25% is dangerous
@@ -83,9 +87,9 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   };
 
   const getTemperatureData = () => {
-    if (!plcData) return { current: 0, range: '20-24°C', percentage: 0, status: 'Unknown' };
+    if (!plcData || !plcData.sensors) return { current: 0, range: '20-24°C', percentage: 0, status: 'No Data' };
     
-    const current = plcData.sensors.current_temperature;
+    const current = plcData.sensors.current_temperature || 0;
     const minTemp = 20;
     const maxTemp = 24;
     const percentage = ((current - minTemp) / (maxTemp - minTemp)) * 100;
@@ -98,9 +102,9 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   };
 
   const getHumidityData = () => {
-    if (!plcData) return { level: 0, status: 'Unknown' };
+    if (!plcData || !plcData.sensors) return { level: 0, status: 'No Data' };
     
-    const level = plcData.sensors.current_humidity;
+    const level = plcData.sensors.current_humidity || 0;
     let status = 'Good';
     if (level < 40) status = 'Low';
     else if (level > 60) status = 'High';
@@ -109,7 +113,7 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   };
 
   const getLightingStatus = () => {
-    if (!plcData) {
+    if (!plcData || !plcData.control_panel) {
       return [
         { name: 'Reading', status: false, color: currentTheme.colors.textSecondary },
         { name: 'Ceiling', status: false, color: currentTheme.colors.textSecondary },
@@ -121,22 +125,22 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
     return [
       { 
         name: 'Reading', 
-        status: plcData.control_panel.reading_lights_state, 
+        status: plcData.control_panel.reading_lights_state || false, 
         color: plcData.control_panel.reading_lights_state ? currentTheme.colors.warning : currentTheme.colors.textSecondary 
       },
       { 
         name: 'Ceiling', 
-        status: plcData.control_panel.ceiling_lights_state, 
+        status: plcData.control_panel.ceiling_lights_state || false, 
         color: plcData.control_panel.ceiling_lights_state ? currentTheme.colors.success : currentTheme.colors.textSecondary 
       },
       { 
         name: 'AC', 
-        status: plcData.control_panel.ac_state, 
+        status: plcData.control_panel.ac_state || false, 
         color: plcData.control_panel.ac_state ? currentTheme.colors.info : currentTheme.colors.textSecondary 
       },
       { 
         name: 'Intercom', 
-        status: plcData.control_panel.intercom_state, 
+        status: plcData.control_panel.intercom_state || false, 
         color: plcData.control_panel.intercom_state ? currentTheme.colors.primary : currentTheme.colors.textSecondary 
       },
     ];
