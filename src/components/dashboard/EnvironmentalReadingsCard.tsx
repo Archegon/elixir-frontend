@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, getProgressBarStyle } from '../../utils/containerStyles';
-import { Lightbulb, Thermometer } from 'lucide-react';
+import { Lightbulb, Thermometer, Wifi, WifiOff } from 'lucide-react';
+import apiService from '../../services/api.service';
+import type { PLCStatus } from '../../config/api-endpoints';
 
 interface EnvironmentalReadingsCardProps {
   onClimateControl?: () => void;
@@ -9,13 +11,141 @@ interface EnvironmentalReadingsCardProps {
 
 const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ onClimateControl }) => {
   const { currentTheme } = useTheme();
+  const [plcData, setPlcData] = useState<PLCStatus | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const lightingStatus = [
-    { name: 'Reading', status: 'on', color: currentTheme.colors.warning },
-    { name: 'Door', status: 'on', color: currentTheme.colors.success },
-    { name: 'Ceiling', status: 'off', color: currentTheme.colors.textSecondary },
-    { name: 'Exterior', status: 'on', color: currentTheme.colors.info },
-  ];
+  useEffect(() => {
+    // Subscribe to WebSocket status updates
+    const handleStatusUpdate = (data: PLCStatus) => {
+      setPlcData(data);
+      setLastUpdate(new Date());
+    };
+
+    const handleConnected = () => {
+      setIsConnected(true);
+    };
+
+    const handleDisconnected = () => {
+      setIsConnected(false);
+    };
+
+    // Register event listeners
+    apiService.on('status-update', handleStatusUpdate);
+    apiService.on('connected', handleConnected);
+    apiService.on('disconnected', handleDisconnected);
+
+    // Check initial connection status
+    setIsConnected(apiService.getConnectionStatus());
+    
+    // Get initial data if available
+    const initialData = apiService.getSystemStatus();
+    if (initialData) {
+      setPlcData(initialData);
+      setLastUpdate(new Date());
+    }
+
+    // Cleanup
+    return () => {
+      apiService.off('status-update', handleStatusUpdate);
+      apiService.off('connected', handleConnected);
+      apiService.off('disconnected', handleDisconnected);
+    };
+  }, []);
+
+  // Helper functions to get real-time data
+  const getPressureData = () => {
+    if (!plcData) return { current: 0, target: 0, percentage: 0, status: 'Unknown' };
+    
+    const current = plcData.pressure.internal_pressure_1;
+    const target = plcData.pressure.setpoint;
+    const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+    
+    let status = 'Normal';
+    if (percentage < 80) status = 'Low';
+    else if (percentage > 105) status = 'High';
+    
+    return { current, target, percentage, status };
+  };
+
+  const getOxygenData = () => {
+    if (!plcData) return { level: 0, flow: 0, status: 'Unknown' };
+    
+    const level = plcData.sensors.ambient_o2;
+    let status = 'Optimal';
+    if (level < 95) status = 'Low';
+    else if (level > 100) status = 'High';
+    
+    return { level, flow: 15, status }; // Flow is placeholder - add to PLC if available
+  };
+
+  const getTemperatureData = () => {
+    if (!plcData) return { current: 0, range: '20-24°C', percentage: 0, status: 'Unknown' };
+    
+    const current = plcData.sensors.current_temperature;
+    const minTemp = 20;
+    const maxTemp = 24;
+    const percentage = ((current - minTemp) / (maxTemp - minTemp)) * 100;
+    
+    let status = 'Stable';
+    if (current < minTemp) status = 'Cold';
+    else if (current > maxTemp) status = 'Warm';
+    
+    return { current, range: '20-24°C', percentage: Math.max(0, Math.min(100, percentage)), status };
+  };
+
+  const getHumidityData = () => {
+    if (!plcData) return { level: 0, status: 'Unknown' };
+    
+    const level = plcData.sensors.current_humidity;
+    let status = 'Good';
+    if (level < 40) status = 'Low';
+    else if (level > 60) status = 'High';
+    
+    return { level, status };
+  };
+
+  const getLightingStatus = () => {
+    if (!plcData) {
+      return [
+        { name: 'Reading', status: false, color: currentTheme.colors.textSecondary },
+        { name: 'Ceiling', status: false, color: currentTheme.colors.textSecondary },
+        { name: 'AC', status: false, color: currentTheme.colors.textSecondary },
+        { name: 'Intercom', status: false, color: currentTheme.colors.textSecondary },
+      ];
+    }
+
+    return [
+      { 
+        name: 'Reading', 
+        status: plcData.control_panel.reading_lights_state, 
+        color: plcData.control_panel.reading_lights_state ? currentTheme.colors.warning : currentTheme.colors.textSecondary 
+      },
+      { 
+        name: 'Ceiling', 
+        status: plcData.control_panel.ceiling_lights_state, 
+        color: plcData.control_panel.ceiling_lights_state ? currentTheme.colors.success : currentTheme.colors.textSecondary 
+      },
+      { 
+        name: 'AC', 
+        status: plcData.control_panel.ac_state, 
+        color: plcData.control_panel.ac_state ? currentTheme.colors.info : currentTheme.colors.textSecondary 
+      },
+      { 
+        name: 'Intercom', 
+        status: plcData.control_panel.intercom_state, 
+        color: plcData.control_panel.intercom_state ? currentTheme.colors.primary : currentTheme.colors.textSecondary 
+      },
+    ];
+  };
+
+  // Get processed data
+  const pressureData = getPressureData();
+  const oxygenData = getOxygenData();
+  const temperatureData = getTemperatureData();
+  const humidityData = getHumidityData();
+  const lightingStatus = getLightingStatus();
+  const activeLights = lightingStatus.filter(light => light.status).length;
 
   return (
     <div 
@@ -23,17 +153,34 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
       style={containerStyles.card(currentTheme)}
     >
       <div className="mb-4">
-        <h3 
-          className="text-lg font-semibold mb-1"
-          style={{ color: currentTheme.colors.textPrimary }}
-        >
-          Chamber Status
-        </h3>
+        <div className="flex items-center justify-between mb-1">
+          <h3 
+            className="text-lg font-semibold"
+            style={{ color: currentTheme.colors.textPrimary }}
+          >
+            Chamber Status
+          </h3>
+          <div className="flex items-center space-x-2">
+            {isConnected ? (
+              <Wifi size={16} style={{ color: currentTheme.colors.success }} />
+            ) : (
+              <WifiOff size={16} style={{ color: currentTheme.colors.danger }} />
+            )}
+            {lastUpdate && (
+              <span 
+                className="text-xs"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
+                {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </div>
         <p 
           className="text-sm"
           style={{ color: currentTheme.colors.textSecondary }}
         >
-          Environmental conditions & lighting
+          {isConnected ? 'Real-time environmental conditions & lighting' : 'Disconnected - showing cached data'}
         </p>
       </div>
 
@@ -51,9 +198,12 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
             </h4>
             <div 
               className="px-2 py-1 text-xs font-medium rounded-full"
-              style={containerStyles.statusBadge(currentTheme, 'success')}
+              style={containerStyles.statusBadge(currentTheme, 
+                pressureData.status === 'Normal' ? 'success' : 
+                pressureData.status === 'Low' ? 'warning' : 'danger'
+              )}
             >
-              Normal
+              {pressureData.status}
             </div>
           </div>
           <div>
@@ -61,17 +211,23 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              2.4 <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
+              {pressureData.current.toFixed(1)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
             </p>
             <p 
               className="text-xs"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Target: 2.5 ATA
+              Target: {pressureData.target.toFixed(1)} ATA
             </p>
           </div>
-          <div style={getProgressBarStyle(currentTheme, 96, currentTheme.colors.success).container}>
-            <div style={getProgressBarStyle(currentTheme, 96, currentTheme.colors.success).fill}></div>
+          <div style={getProgressBarStyle(currentTheme, pressureData.percentage, 
+            pressureData.status === 'Normal' ? currentTheme.colors.success : 
+            pressureData.status === 'Low' ? currentTheme.colors.warning : currentTheme.colors.danger
+          ).container}>
+            <div style={getProgressBarStyle(currentTheme, pressureData.percentage, 
+              pressureData.status === 'Normal' ? currentTheme.colors.success : 
+              pressureData.status === 'Low' ? currentTheme.colors.warning : currentTheme.colors.danger
+            ).fill}></div>
           </div>
         </div>
 
@@ -86,9 +242,12 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
             </h4>
             <div 
               className="px-2 py-1 text-xs font-medium rounded-full"
-              style={containerStyles.statusBadge(currentTheme, 'info')}
+              style={containerStyles.statusBadge(currentTheme, 
+                oxygenData.status === 'Optimal' ? 'success' : 
+                oxygenData.status === 'Low' ? 'warning' : 'danger'
+              )}
             >
-              Optimal
+              {oxygenData.status}
             </div>
           </div>
           <div>
@@ -96,17 +255,23 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              100 <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
+              {oxygenData.level.toFixed(0)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
             </p>
             <p 
               className="text-xs"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Flow: 15 L/min
+              Flow: {oxygenData.flow} L/min
             </p>
           </div>
-          <div style={getProgressBarStyle(currentTheme, 100, currentTheme.colors.info).container}>
-            <div style={getProgressBarStyle(currentTheme, 100, currentTheme.colors.info).fill}></div>
+          <div style={getProgressBarStyle(currentTheme, oxygenData.level, 
+            oxygenData.status === 'Optimal' ? currentTheme.colors.success : 
+            oxygenData.status === 'Low' ? currentTheme.colors.warning : currentTheme.colors.danger
+          ).container}>
+            <div style={getProgressBarStyle(currentTheme, oxygenData.level, 
+              oxygenData.status === 'Optimal' ? currentTheme.colors.success : 
+              oxygenData.status === 'Low' ? currentTheme.colors.warning : currentTheme.colors.danger
+            ).fill}></div>
           </div>
         </div>
 
@@ -121,9 +286,11 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
             </h4>
             <div 
               className="px-2 py-1 text-xs font-medium rounded-full"
-              style={containerStyles.statusBadge(currentTheme, 'warning')}
+              style={containerStyles.statusBadge(currentTheme, 
+                temperatureData.status === 'Stable' ? 'success' : 'warning'
+              )}
             >
-              Stable
+              {temperatureData.status}
             </div>
           </div>
           <div>
@@ -131,17 +298,21 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              22 <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>°C</span>
+              {temperatureData.current.toFixed(0)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>°C</span>
             </p>
             <p 
               className="text-xs"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Range: 20-24°C
+              Range: {temperatureData.range}
             </p>
           </div>
-          <div style={getProgressBarStyle(currentTheme, 80, currentTheme.colors.warning).container}>
-            <div style={getProgressBarStyle(currentTheme, 80, currentTheme.colors.warning).fill}></div>
+          <div style={getProgressBarStyle(currentTheme, temperatureData.percentage, 
+            temperatureData.status === 'Stable' ? currentTheme.colors.success : currentTheme.colors.warning
+          ).container}>
+            <div style={getProgressBarStyle(currentTheme, temperatureData.percentage, 
+              temperatureData.status === 'Stable' ? currentTheme.colors.success : currentTheme.colors.warning
+            ).fill}></div>
           </div>
         </div>
 
@@ -156,9 +327,11 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
             </h4>
             <div 
               className="px-2 py-1 text-xs font-medium rounded-full"
-              style={containerStyles.statusBadge(currentTheme, 'success')}
+              style={containerStyles.statusBadge(currentTheme, 
+                humidityData.status === 'Good' ? 'success' : 'warning'
+              )}
             >
-              Good
+              {humidityData.status}
             </div>
           </div>
           <div>
@@ -166,7 +339,7 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              45 <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
+              {humidityData.level.toFixed(0)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
             </p>
             <p 
               className="text-xs"
@@ -175,8 +348,12 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               Optimal: 40-60%
             </p>
           </div>
-          <div style={getProgressBarStyle(currentTheme, 45, currentTheme.colors.success).container}>
-            <div style={getProgressBarStyle(currentTheme, 45, currentTheme.colors.success).fill}></div>
+          <div style={getProgressBarStyle(currentTheme, humidityData.level, 
+            humidityData.status === 'Good' ? currentTheme.colors.success : currentTheme.colors.warning
+          ).container}>
+            <div style={getProgressBarStyle(currentTheme, humidityData.level, 
+              humidityData.status === 'Good' ? currentTheme.colors.success : currentTheme.colors.warning
+            ).fill}></div>
           </div>
         </div>
 
@@ -193,9 +370,9 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
           </h4>
           <div 
             className="px-2 py-1 text-xs font-medium rounded-full"
-            style={containerStyles.statusBadge(currentTheme, 'success')}
+            style={containerStyles.statusBadge(currentTheme, activeLights > 0 ? 'success' : 'warning')}
           >
-            3 Active
+            {activeLights} Active
           </div>
         </div>
         
@@ -214,8 +391,8 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
                 <Lightbulb 
                   size={14} 
                   style={{ 
-                    color: light.status === 'on' ? light.color : currentTheme.colors.textSecondary,
-                    opacity: light.status === 'on' ? 1 : 0.5
+                    color: light.status ? light.color : currentTheme.colors.textSecondary,
+                    opacity: light.status ? 1 : 0.5
                   }} 
                 />
                 <span 
@@ -228,8 +405,8 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               <div 
                 className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ 
-                  backgroundColor: light.status === 'on' ? light.color : `${currentTheme.colors.textSecondary}40`,
-                  boxShadow: light.status === 'on' ? `0 0 6px ${light.color}50` : 'none'
+                  backgroundColor: light.status ? light.color : `${currentTheme.colors.textSecondary}40`,
+                  boxShadow: light.status ? `0 0 6px ${light.color}50` : 'none'
                 }}
               ></div>
             </div>
