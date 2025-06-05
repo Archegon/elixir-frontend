@@ -19,9 +19,11 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   useEffect(() => {
     // Subscribe to WebSocket status updates
     const handleStatusUpdate = (data: PLCStatus) => {
+      /*
       if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
         console.log('📊 Received PLC data:', data);
       }
+        */
       setPlcData(data);
       setLastUpdate(new Date());
     };
@@ -218,13 +220,13 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              {pressureData.current.toFixed(1)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
+              {pressureData.current.toFixed(3)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
             </p>
             <p 
               className="text-xs"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Target: {pressureData.target.toFixed(1)} ATA
+              Target: {pressureData.target.toFixed(3)} ATA
             </p>
           </div>
           <div style={getProgressBarStyle(currentTheme, pressureData.percentage, 
@@ -261,7 +263,7 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              {oxygenData.level.toFixed(0)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
+              {oxygenData.level.toFixed(2)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
             </p>
             <p 
               className="text-xs"
@@ -302,7 +304,7 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              {temperatureData.current.toFixed(0)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>°C</span>
+              {temperatureData.current.toFixed(2)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>°C</span>
             </p>
             <p 
               className="text-xs"
@@ -343,7 +345,7 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              {humidityData.level.toFixed(0)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
+              {humidityData.level.toFixed(2)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>%</span>
             </p>
             <p 
               className="text-xs"
