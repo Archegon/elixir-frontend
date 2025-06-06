@@ -1,11 +1,11 @@
 /**
  * API Service for Elixir Frontend
  * 
- * Simple service using separated connection and endpoints configuration.
+ * Enhanced service with automatic backend discovery.
  * Implements WebSocket + HTTP communication pattern with optimistic updates.
  */
 
-import { CONNECTION_CONFIG, buildApiUrl, buildWsUrl } from '../config/connection.config';
+import { CONNECTION_CONFIG, buildApiUrl, buildWsUrl, buildApiUrlSync, buildWsUrlSync, discoverBackend, resetDiscovery } from '../config/connection.config';
 import { API_ENDPOINTS, WS_ENDPOINTS, type ApiResponse, type PLCStatus } from '../config/api-endpoints';
 
 class ApiService {
@@ -15,27 +15,115 @@ class ApiService {
   private pendingCommands = new Set<string>();
   private reconnectAttempts = 0;
   private eventListeners: Record<string, Function[]> = {};
+  private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initializeWebSocket();
+    // Initialize with discovery
+    this.initializeWithDiscovery();
+  }
+
+  // ===============================================
+  // Initialization with Backend Discovery
+  // ===============================================
+
+  private async initializeWithDiscovery() {
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.performInitialization();
+    return this.initializationPromise;
+  }
+
+  private async performInitialization() {
+    try {
+      // Discover backend before initializing WebSocket
+      const { apiUrl, wsUrl } = await discoverBackend();
+      
+      if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
+        console.log(`🎯 Backend discovered - API: ${apiUrl}, WS: ${wsUrl}`);
+      }
+      
+      this.emit('discovery-complete', { apiUrl, wsUrl });
+      
+      // Initialize WebSocket with discovered URL
+      await this.initializeWebSocket();
+      this.isInitialized = true;
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize with backend discovery:', error);
+      this.emit('initialization-failed', { error });
+      
+      // Fallback to basic initialization
+      await this.initializeWebSocket();
+      this.isInitialized = true;
+    }
   }
 
   // ===============================================
   // WebSocket Management
   // ===============================================
 
-  private initializeWebSocket() {
-    const wsUrl = buildWsUrl(WS_ENDPOINTS.SYSTEM_STATUS);
-    
-    if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
-      console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
-    }
+  private async initializeWebSocket() {
+    try {
+      const wsUrl = await buildWsUrl(WS_ENDPOINTS.SYSTEM_STATUS);
+      
+      if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
+        console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
+      }
 
-    this.ws = new WebSocket(wsUrl);
+      this.ws = new WebSocket(wsUrl);
+
+      this.ws.onopen = () => {
+        if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
+          console.log('✅ WebSocket connected');
+        }
+        this.reconnectAttempts = 0;
+        this.emit('connected', { connected: true });
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const data: PLCStatus = JSON.parse(event.data);
+          this.wsStatus = data;
+          this.emit('status-update', data);
+          this.updateControls();
+        } catch (error) {
+          console.error('❌ Failed to parse WebSocket message:', error);
+        }
+      };
+
+      this.ws.onclose = () => {
+        if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
+          console.warn('🔌 WebSocket disconnected');
+        }
+        this.emit('disconnected', { connected: false });
+        this.attemptReconnect();
+      };
+
+      this.ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+        this.emit('error', { error: 'WebSocket connection failed' });
+      };
+    } catch (error) {
+      console.error('❌ Failed to initialize WebSocket:', error);
+      
+      // Fallback to synchronous URL building
+      const wsUrl = buildWsUrlSync(WS_ENDPOINTS.SYSTEM_STATUS);
+      this.ws = new WebSocket(wsUrl);
+      
+      // Set up event handlers for fallback connection
+      this.setupWebSocketHandlers();
+    }
+  }
+
+  private setupWebSocketHandlers() {
+    if (!this.ws) return;
 
     this.ws.onopen = () => {
       if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
-        console.log('✅ WebSocket connected');
+        console.log('✅ WebSocket connected (fallback)');
       }
       this.reconnectAttempts = 0;
       this.emit('connected', { connected: true });
@@ -54,19 +142,19 @@ class ApiService {
 
     this.ws.onclose = () => {
       if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
-        console.warn('🔌 WebSocket disconnected');
+        console.warn('🔌 WebSocket disconnected (fallback)');
       }
       this.emit('disconnected', { connected: false });
       this.attemptReconnect();
     };
 
     this.ws.onerror = (error) => {
-      console.error('❌ WebSocket error:', error);
+      console.error('❌ WebSocket error (fallback):', error);
       this.emit('error', { error: 'WebSocket connection failed' });
     };
   }
 
-  private attemptReconnect() {
+  private async attemptReconnect() {
     if (this.reconnectAttempts < CONNECTION_CONFIG.WEBSOCKET.MAX_RECONNECT_ATTEMPTS) {
       this.reconnectAttempts++;
       
@@ -74,8 +162,16 @@ class ApiService {
         console.log(`🔄 Attempting reconnect ${this.reconnectAttempts}/${CONNECTION_CONFIG.WEBSOCKET.MAX_RECONNECT_ATTEMPTS}`);
       }
       
-      setTimeout(() => {
-        this.initializeWebSocket();
+      setTimeout(async () => {
+        // On every few reconnection attempts, retry discovery
+        if (this.reconnectAttempts % 3 === 0) {
+          if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
+            console.log('🔄 Retrying backend discovery...');
+          }
+          resetDiscovery();
+        }
+        
+        await this.initializeWebSocket();
       }, CONNECTION_CONFIG.WEBSOCKET.RECONNECT_INTERVAL);
     } else {
       console.error('❌ Max reconnection attempts reached');
@@ -88,35 +184,100 @@ class ApiService {
   // ===============================================
 
   private async makeRequest<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    const url = buildApiUrl(endpoint);
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONNECTION_CONFIG.HTTP.TIMEOUT);
+    // Ensure initialization is complete
+    if (!this.isInitialized) {
+      await this.initializeWithDiscovery();
+    }
 
     try {
-      const response = await fetch(url, {
-        ...config,
-        signal: controller.signal,
-      });
+      const url = await buildApiUrl(endpoint);
+      const config: RequestInit = {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      };
 
-      clearTimeout(timeoutId);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CONNECTION_CONFIG.HTTP.TIMEOUT);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      try {
+        const response = await fetch(url, {
+          ...config,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
       }
-
-      return await response.json();
     } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
+      // Fallback to synchronous URL building
+      const url = buildApiUrlSync(endpoint);
+      const config: RequestInit = {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CONNECTION_CONFIG.HTTP.TIMEOUT);
+
+      try {
+        const response = await fetch(url, {
+          ...config,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (fallbackError) {
+        clearTimeout(timeoutId);
+        throw fallbackError;
+      }
     }
+  }
+
+  // ===============================================
+  // Public API Methods
+  // ===============================================
+
+  async waitForInitialization(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initializeWithDiscovery();
+    }
+  }
+
+  async reconnectWithDiscovery(): Promise<void> {
+    if (CONNECTION_CONFIG.DEV.CONSOLE_LOGGING) {
+      console.log('🔄 Manual reconnection with discovery...');
+    }
+    
+    resetDiscovery();
+    this.isInitialized = false;
+    this.initializationPromise = null;
+    
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    
+    await this.initializeWithDiscovery();
   }
 
   // ===============================================
