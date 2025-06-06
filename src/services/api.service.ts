@@ -1,15 +1,18 @@
 /**
  * API Service for Elixir Frontend
  * 
- * Enhanced service with automatic backend discovery.
+ * Enhanced service with automatic backend discovery and mock system integration.
  * Implements WebSocket + HTTP communication pattern with optimistic updates.
  */
 
 import { CONNECTION_CONFIG, buildApiUrl, buildWsUrl, buildApiUrlSync, buildWsUrlSync, discoverBackend, resetDiscovery } from '../config/connection.config';
 import { API_ENDPOINTS, WS_ENDPOINTS, type ApiResponse, type PLCStatus } from '../config/api-endpoints';
+import { mockApiService } from '../mocks/api.mock';
+import { mockWebSocketService, MockWebSocket } from '../mocks/websocket.mock';
+import { plcDataMock } from '../mocks/plc-data.mock';
 
 class ApiService {
-  private ws: WebSocket | null = null;
+  private ws: WebSocket | MockWebSocket | null = null;
   private wsStatus: PLCStatus | null = null;
   private optimisticStates: Record<string, any> = {};
   private pendingCommands = new Set<string>();
@@ -17,15 +20,116 @@ class ApiService {
   private eventListeners: Record<string, Function[]> = {};
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
+  private isMockMode = false;
 
   constructor() {
-    // Initialize with discovery
-    this.initializeWithDiscovery();
+    // Check if mock mode is enabled
+    this.isMockMode = import.meta.env.VITE_MOCK_MODE === 'true' ||
+                      import.meta.env.VITE_MOCK_API === 'true' ||
+                      import.meta.env.VITE_MOCK_PLC_DATA === 'true';
+    
+    if (this.isMockMode) {
+      console.log('🎭 API Service starting in mock mode');
+      this.initializeMockMode();
+    } else {
+      // Initialize with discovery
+      this.initializeWithDiscovery();
+    }
   }
 
   // ===============================================
   // Initialization with Backend Discovery
   // ===============================================
+
+  private async initializeMockMode() {
+    try {
+      console.log('🎭 Initializing mock services...');
+      
+      // Configure mock API based on environment variables
+      mockApiService.configure({
+        enabled: true,
+        responseDelay: {
+          min: parseInt(import.meta.env.VITE_MOCK_API_DELAY_MIN || '100'),
+          max: parseInt(import.meta.env.VITE_MOCK_API_DELAY_MAX || '500'),
+        },
+        errorRate: parseFloat(import.meta.env.VITE_MOCK_ERROR_RATE || '0.05'),
+        networkJitter: import.meta.env.VITE_MOCK_NETWORK_JITTER === 'true',
+      });
+
+      // Configure mock WebSocket
+      mockWebSocketService.configure({
+        enabled: import.meta.env.VITE_MOCK_WEBSOCKET === 'true',
+        connectionDelay: 500,
+        simulateDisconnections: import.meta.env.VITE_MOCK_WS_DISCONNECTIONS === 'true',
+        disconnectionRate: 0.01,
+        messageDelay: { min: 50, max: 200 },
+      });
+
+      // Set initial mock scenario
+      const initialScenario = import.meta.env.VITE_MOCK_DEFAULT_SCENARIO || 'normal';
+      plcDataMock.setScenario(initialScenario);
+
+      // Set mock update frequency
+      const updateFrequency = parseInt(import.meta.env.VITE_MOCK_UPDATE_FREQUENCY || '1000');
+      plcDataMock.setUpdateFrequency(updateFrequency);
+
+      // Initialize mock WebSocket if enabled
+      if (import.meta.env.VITE_MOCK_WEBSOCKET === 'true') {
+        await this.initializeMockWebSocket();
+      }
+
+      this.isInitialized = true;
+      this.emit('mock-initialized', { mock: true });
+      
+      console.log('✅ Mock mode initialized successfully');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize mock mode:', error);
+      this.emit('initialization-failed', { error, mock: true });
+    }
+  }
+
+  private async initializeMockWebSocket() {
+    try {
+      console.log('🔌 Starting mock WebSocket connection...');
+      
+      const mockWs = mockWebSocketService.createWebSocket('ws://mock/system-status');
+      this.ws = mockWs;
+
+      mockWs.onopen = () => {
+        console.log('✅ Mock WebSocket connected');
+        this.reconnectAttempts = 0;
+        this.emit('connected', { connected: true, mock: true });
+      };
+
+      mockWs.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'status_update') {
+            this.wsStatus = message.data;
+            this.emit('status-update', message.data);
+            this.updateControls();
+          }
+        } catch (error) {
+          console.error('❌ Failed to parse mock WebSocket message:', error);
+        }
+      };
+
+      mockWs.onclose = () => {
+        console.warn('🔌 Mock WebSocket disconnected');
+        this.emit('disconnected', { connected: false, mock: true });
+        // Don't attempt reconnect in mock mode - it's controlled by mock service
+      };
+
+      mockWs.onerror = (error) => {
+        console.error('❌ Mock WebSocket error:', error);
+        this.emit('error', { error: 'Mock WebSocket connection failed' });
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to initialize mock WebSocket:', error);
+    }
+  }
 
   private async initializeWithDiscovery() {
     if (this.initializationPromise) {
@@ -186,7 +290,16 @@ class ApiService {
   private async makeRequest<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     // Ensure initialization is complete
     if (!this.isInitialized) {
-      await this.initializeWithDiscovery();
+      if (this.isMockMode) {
+        await this.initializeMockMode();
+      } else {
+        await this.initializeWithDiscovery();
+      }
+    }
+
+    // Use mock API if in mock mode
+    if (this.isMockMode && import.meta.env.VITE_MOCK_API === 'true') {
+      return this.makeMockRequest<T>(endpoint, options);
     }
 
     try {
@@ -253,13 +366,121 @@ class ApiService {
     }
   }
 
+  private async makeMockRequest<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    try {
+      // Route to appropriate mock API method based on endpoint
+      const method = options.method || 'GET';
+      
+      switch (endpoint) {
+        case API_ENDPOINTS.HEALTH:
+          return await mockApiService.getHealth() as ApiResponse<T>;
+          
+        case API_ENDPOINTS.SYSTEM.STATUS:
+          return await mockApiService.getSystemStatus() as ApiResponse<T>;
+          
+        case API_ENDPOINTS.CONTROL.CEILING_LIGHTS:
+          if (method === 'POST') {
+            return await mockApiService.toggleCeilingLights() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.CONTROL.READING_LIGHTS:
+          if (method === 'POST') {
+            return await mockApiService.toggleReadingLights() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.CONTROL.AC_TOGGLE:
+          if (method === 'POST') {
+            return await mockApiService.toggleAC() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.CONTROL.INTERCOM:
+          if (method === 'POST') {
+            return await mockApiService.toggleIntercom() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.SESSION.START:
+          if (method === 'POST') {
+            return await mockApiService.startSession() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.SESSION.END:
+          if (method === 'POST') {
+            return await mockApiService.endSession() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.PRESSURE.ADD:
+          if (method === 'POST') {
+            return await mockApiService.increasePressure() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.PRESSURE.SUBTRACT:
+          if (method === 'POST') {
+            return await mockApiService.decreasePressure() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.PRESSURE.SETPOINT:
+          if (method === 'POST') {
+            // Extract setpoint from request body if available
+            let setpoint = 2.5; // default
+            if (options.body) {
+              try {
+                const body = JSON.parse(options.body as string);
+                setpoint = body.setpoint || setpoint;
+              } catch (e) {
+                // Ignore parsing errors
+              }
+            }
+            return await mockApiService.setPressureSetpoint(setpoint) as ApiResponse<T>;
+          }
+          break;
+          
+        default:
+          console.warn(`🎭 Mock API: Unhandled endpoint ${endpoint}, returning default response`);
+          return {
+            success: true,
+            data: {} as T,
+            message: 'Mock response',
+            timestamp: new Date().toISOString(),
+          };
+      }
+      
+      // Default response for unhandled cases
+      return {
+        success: true,
+        data: {} as T,
+        message: 'Mock response',
+        timestamp: new Date().toISOString(),
+      };
+      
+    } catch (error) {
+      console.error('❌ Mock API request failed:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Mock API error',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
   // ===============================================
   // Public API Methods
   // ===============================================
 
   async waitForInitialization(): Promise<void> {
     if (!this.isInitialized) {
-      await this.initializeWithDiscovery();
+      if (this.isMockMode) {
+        await this.initializeMockMode();
+      } else {
+        await this.initializeWithDiscovery();
+      }
     }
   }
 

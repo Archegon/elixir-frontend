@@ -11,6 +11,7 @@ import EnvironmentalReadingsCard from '../components/dashboard/EnvironmentalRead
 import SessionInfoCard from '../components/dashboard/SessionInfoCard';
 import AlertsCard from '../components/dashboard/AlertsCard';
 import ElixirLogo from '../components/ui/ElixirLogo';
+import { MockControls } from '../components/MockControls';
 
 const Dashboard: React.FC = () => {
   const { currentTheme } = useTheme();
@@ -18,6 +19,7 @@ const Dashboard: React.FC = () => {
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isMockControlsVisible, setIsMockControlsVisible] = useState(false);
   const [environmentalControls, setEnvironmentalControls] = useState<EnvironmentalControls>({
     airConditioner: {
       enabled: true,
@@ -91,7 +93,11 @@ const Dashboard: React.FC = () => {
       }}
     >
       {/* Side Navbar */}
-      <SideNavbar onThemeModalOpen={() => setIsThemeModalOpen(true)} onEnvControls={() => setIsEnvModalOpen(true)} />
+      <SideNavbar 
+        onThemeModalOpen={() => setIsThemeModalOpen(true)} 
+        onEnvControls={() => setIsEnvModalOpen(true)}
+        onMockControls={() => setIsMockControlsVisible(!isMockControlsVisible)}
+      />
 
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-hidden">
@@ -155,6 +161,12 @@ const Dashboard: React.FC = () => {
       <ThemeSelectorModal
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
+      />
+
+      {/* Mock Controls - Only visible in mock mode */}
+      <MockControls 
+        visible={isMockControlsVisible}
+        onToggle={() => setIsMockControlsVisible(!isMockControlsVisible)}
       />
     </div>
   );

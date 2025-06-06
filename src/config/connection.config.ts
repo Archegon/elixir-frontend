@@ -97,6 +97,20 @@ class BackendDiscovery {
   }
 
   async discoverBackend(): Promise<{ apiUrl: string; wsUrl: string }> {
+    // Check if mock mode is enabled - skip discovery entirely
+    const isMockMode = getEnvBoolean('VITE_MOCK_MODE', false) || 
+                       getEnvBoolean('VITE_MOCK_API', false) || 
+                       getEnvBoolean('VITE_MOCK_PLC_DATA', false);
+    
+    if (isMockMode) {
+      console.log('🎭 Mock mode enabled - skipping backend discovery');
+      const mockUrl = 'http://localhost:3000'; // Mock URL for development
+      return { 
+        apiUrl: mockUrl, 
+        wsUrl: mockUrl.replace('http', 'ws') 
+      };
+    }
+
     if (this.discoveredBaseUrl && this.discoveredWsUrl) {
       return { 
         apiUrl: this.discoveredBaseUrl, 
@@ -472,14 +486,14 @@ export const CONNECTION_CONFIG = {
   get API_BASE_URL(): string {
     // This will be replaced by discovered URL during runtime
     return getEnvVar('VITE_API_BASE_URL', 
-      isDevelopment ? 'http://localhost:8000' : 'https://your-production-domain.com'
+    isDevelopment ? 'http://localhost:8000' : 'https://your-production-domain.com'
     );
   },
   
   get WS_BASE_URL(): string {
     // This will be replaced by discovered URL during runtime
     return getEnvVar('VITE_WS_BASE_URL', 
-      isDevelopment ? 'ws://localhost:8000' : 'wss://your-production-domain.com'
+    isDevelopment ? 'ws://localhost:8000' : 'wss://your-production-domain.com'
     );
   },
 

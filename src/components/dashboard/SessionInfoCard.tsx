@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, containerClasses, getProgressBarStyle } from '../../utils/containerStyles';
 import { BarChart3, Gauge, Play, MessageCircle } from 'lucide-react';
+import { apiService } from '../../services/api.service';
+import type { PLCStatus } from '../../config/api-endpoints';
+import { isSessionActive } from '../../utils/session.utils';
 
 interface SessionInfoCardProps {
   onModeSelect?: () => void;
@@ -9,6 +12,129 @@ interface SessionInfoCardProps {
 
 const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
   const { currentTheme } = useTheme();
+  const [currentStatus, setCurrentStatus] = useState<PLCStatus | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  // Subscribe to real-time session updates
+  useEffect(() => {
+    let statusCallback: Function | null = null;
+    let connectedCallback: Function | null = null;
+    let disconnectedCallback: Function | null = null;
+
+    const setupSubscriptions = async () => {
+      try {
+        await apiService.waitForInitialization();
+
+        // Define event callbacks
+        statusCallback = (status: PLCStatus) => {
+          setCurrentStatus(status);
+        };
+
+        connectedCallback = (connectionData: { connected: boolean }) => {
+          setIsConnected(connectionData.connected);
+        };
+
+        disconnectedCallback = (connectionData: { connected: boolean }) => {
+          setIsConnected(connectionData.connected);
+        };
+
+        // Subscribe to events
+        apiService.on('status-update', statusCallback);
+        apiService.on('connected', connectedCallback);
+        apiService.on('disconnected', disconnectedCallback);
+
+        // Get initial connection status
+        setIsConnected(apiService.getConnectionStatus());
+
+      } catch (error) {
+        console.error('Failed to setup session info subscriptions:', error);
+      }
+    };
+
+    setupSubscriptions();
+
+    // Cleanup subscriptions
+    return () => {
+      if (statusCallback) apiService.off('status-update', statusCallback);
+      if (connectedCallback) apiService.off('connected', connectedCallback);
+      if (disconnectedCallback) apiService.off('disconnected', disconnectedCallback);
+    };
+  }, []);
+
+  // Helper functions to format data
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getSessionStatus = (): { status: string; variant: 'success' | 'warning' | 'info' | 'danger' } => {
+    if (!isConnected) return { status: 'Disconnected', variant: 'danger' };
+    if (!currentStatus) return { status: 'No Data', variant: 'warning' };
+    
+    // Check session control flags first
+    const session = currentStatus.session;
+    if (session.stop_state) return { status: 'Session Complete', variant: 'info' };
+    
+    // Check mutually exclusive session states
+    if (session.equalise_state) return { status: 'Equalising', variant: 'info' };
+    if (session.pressuring_state) return { status: 'Pressurizing', variant: 'warning' };
+    if (session.stabilising_state) return { status: 'Treatment', variant: 'success' };
+    if (session.depressurise_state) return { status: 'Depressurizing', variant: 'info' };
+    
+    // Fallback for running_state without specific phase
+    if (session.running_state) return { status: 'Running', variant: 'success' };
+    
+    return { status: 'Idle', variant: 'info' };
+  };
+
+  const getTreatmentMode = (): string => {
+    if (!currentStatus) return 'Unknown';
+    // Check which operating mode flag is active (mutually exclusive)
+    const modes = currentStatus.modes;
+    if (modes.mode_rest) return 'Rest Mode';
+    if (modes.mode_health) return 'Health Mode';
+    if (modes.mode_professional) return 'Professional Mode';
+    if (modes.mode_custom) return 'Custom Mode';
+    if (modes.mode_o2_100) return 'O2 100%';
+    if (modes.mode_o2_120) return 'O2 120%';
+    return 'Unknown Mode';
+  };
+
+  const getCompressionRate = (): string => {
+    if (!currentStatus) return 'Unknown';
+    // Check which compression mode flag is active (mutually exclusive)
+    const modes = currentStatus.modes;
+    if (modes.compression_beginner) return 'Beginner';
+    if (modes.compression_normal) return 'Normal';
+    if (modes.compression_fast) return 'Fast';
+    return 'Unknown Rate';
+  };
+
+  const getO2Delivery = (): string => {
+    if (!currentStatus) return 'Unknown';
+    // Check which oxygen mode flag is active (mutually exclusive)
+    const modes = currentStatus.modes;
+    if (modes.continuous_o2_flag) return 'Continuous';
+    if (modes.intermittent_o2_flag) return 'Intermittent';
+    return 'Unknown O2 Mode';
+  };
+
+  const calculateProgress = (): number => {
+    if (!currentStatus) return 0;
+    
+    // Check if any active session state indicates a running session
+    if (!isSessionActive(currentStatus.session)) return 0;
+    
+    const elapsed = currentStatus.timers.session_elapsed_time;
+    const remaining = currentStatus.timers.run_time_remaining_min * 60;
+    const total = elapsed + remaining;
+    
+    if (total === 0) return 0;
+    return Math.min(100, (elapsed / total) * 100);
+  };
+
+  const sessionStatus = getSessionStatus();
 
   return (
     <div 
@@ -24,9 +150,9 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
         </h3>
         <div 
           className={containerClasses.statusBadge}
-          style={containerStyles.statusBadge(currentTheme, 'success')}
+          style={containerStyles.statusBadge(currentTheme, sessionStatus.variant)}
         >
-          Active
+          {sessionStatus.status}
         </div>
       </div>
       
@@ -36,20 +162,20 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
           className="text-3xl font-bold font-mono mb-1"
           style={{ color: currentTheme.colors.textPrimary }}
         >
-          45:32
+          {currentStatus ? formatTime(currentStatus.timers.session_elapsed_time) : '--:--'}
         </p>
         <p 
           className="text-sm font-medium"
           style={{ color: currentTheme.colors.textSecondary }}
         >
-          Remaining: 14:28
+          Remaining: {currentStatus ? formatTime(currentStatus.timers.run_time_remaining_min * 60) : '--:--'}
         </p>
       </div>
 
       {/* Progress Bar */}
       <div className="mb-4">
-        <div style={getProgressBarStyle(currentTheme, 76, currentTheme.colors.brand).container}>
-          <div style={getProgressBarStyle(currentTheme, 76, currentTheme.colors.brand).fill}></div>
+        <div style={getProgressBarStyle(currentTheme, calculateProgress(), currentTheme.colors.brand).container}>
+          <div style={getProgressBarStyle(currentTheme, calculateProgress(), currentTheme.colors.brand).fill}></div>
         </div>
       </div>
 
@@ -69,7 +195,7 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
               color: currentTheme.colors.info
             }}
           >
-            Professional Mode
+            {getTreatmentMode()}
           </div>
         </div>
 
@@ -87,7 +213,7 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
               color: currentTheme.colors.warning
             }}
           >
-            Normal Rate
+            {getCompressionRate()}
           </div>
         </div>
 
@@ -105,7 +231,7 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
               color: currentTheme.colors.success
             }}
           >
-            Continuous
+            {getO2Delivery()}
           </div>
         </div>
       </div>

@@ -1,580 +1,647 @@
-# Elixir Hyperbaric Chamber - Frontend Application
+# Elixir Frontend
 
-A modern React frontend application for monitoring and controlling hyperbaric chamber operations via PLC (S7-200) integration with comprehensive automatic backend discovery for seamless local network connectivity.
+React-based frontend for the Elixir hyperbaric chamber control system with automatic backend discovery and comprehensive mock system for development.
 
-## 🏗️ Project Overview
+## 🚀 Features
 
-This frontend interfaces with the [Elixir Backend](https://github.com/Archegon/elixir_backend) to provide real-time monitoring and control of hyperbaric chamber systems. The backend communicates with a Siemens S7-200 PLC on a Raspberry Pi, while this React application provides the user interface for operators and medical staff.
+### Production Features
+- **Automatic Backend Discovery**: Finds and connects to backend services automatically across local networks
+- **Network Range Scanning**: Comprehensive IP scanning with configurable concurrency and verification
+- **Service Verification**: Ensures connections are to authentic Elixir backend services
+- **Real-time Data**: WebSocket connections for live PLC status updates
+- **Responsive Design**: Works on tablets, phones, and desktop computers
+- **Connection Monitoring**: Live connection status with detailed diagnostics
 
-### Architecture
-```
-[Frontend (React)] ←→ [Backend (FastAPI)] ←→ [Raspberry Pi + PLC (S7-200)]
-     This App              Port 8000            192.168.2.1
-```
+### Development Features
+- **Mock System**: Complete frontend-only development without PLC hardware
+- **Scenario Testing**: Multiple realistic operation scenarios (normal, emergency, maintenance, etc.)
+- **Network Simulation**: Configurable delays, errors, and disconnections
+- **Developer Controls**: Real-time mock data manipulation and testing tools
 
-### Display Requirements
-- **Target Display**: 1280x720 fixed resolution
-- **No Responsive Design**: Optimized specifically for control panel displays
-- **No Scrolling**: All interface elements fit within the viewport
-- **Touch-Friendly**: Large buttons suitable for gloved operation
-
-## 🎛️ Current Features
-
-### ✅ Implemented
-- **Professional Dashboard Layout** - Fixed 1280x720 grid layout
-- **Real-time Metrics Display** - Pressure, Oxygen, Temperature, Session Timer
-- **Control Panel** - Start, Pause, Adjust, Emergency Stop buttons
-- **System Alerts** - Color-coded notification system
-- **Session History** - Table of recent chamber sessions
-- **Status Indicators** - Visual chamber status with progress bars
-- **TypeScript Architecture** - Complete type definitions for chamber operations
-
-### 🔄 In Development
-- Real-time data integration with backend
-- WebSocket connections for live updates
-- Control action implementations
-- Alert management system
-
-## 🚀 Quick Start
+## 🛠️ Setup
 
 ### Prerequisites
-
-Before you begin, ensure you have the following installed on your machine:
-
-- **Node.js** (version 18.0 or higher) - [Download here](https://nodejs.org/)
-- **npm** (comes with Node.js) or **yarn** package manager
-- **Git** - [Download here](https://git-scm.com/)
+- Node.js 18+ and npm/yarn
+- Access to local network (for backend discovery)
+- Elixir backend service (for production mode)
 
 ### Installation
 
-1. **Clone the repository**
    ```bash
+# Clone the repository
    git clone <repository-url>
    cd elixir-frontend
-   ```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-4. **View the application**
-   
-   Navigate to [http://localhost:5173](http://localhost:5173) to view the control panel.
-
-## 🍓 Raspberry Pi Setup
-
-### Installing Node.js on Raspberry Pi
-
-For production deployment on Raspberry Pi (aarch64), follow these steps to install Node.js v22.16.0:
-
-```bash
-# 1. Navigate to home directory
-cd ~
-
-# 2. Download Node.js v22.16.0 for aarch64
-wget https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-arm64.tar.xz
-
-# 3. Extract the archive
-tar -xf node-v22.16.0-linux-arm64.tar.xz
-
-# 4. Install Node.js by copying to /usr/local
-sudo cp -r node-v22.16.0-linux-arm64/{bin,include,lib,share} /usr/local/
-
-# 5. Verify installation
-node -v
-npm -v
-```
-
-**Expected Output:**
-```
-v22.16.0
-10.x.x
-```
-
-### Additional Raspberry Pi Configuration
-
-After installing Node.js:
-
-1. **Clone and setup the frontend**
-   ```bash
-   git clone <repository-url>
-   cd elixir-frontend
-   npm install
-   ```
-
-2. **Configure environment for Pi**
-   ```bash
-   cp config.example.env .env.local
-   # Edit .env.local with your specific configuration
-   ```
-
-3. **Build for production**
-   ```bash
-   npm run build
-   npm run preview
-   ```
-
-## 📜 Available Scripts
-
-In the project directory, you can run:
-
-- **`npm run dev`** - Starts the development server with hot reload
-- **`npm run build`** - Builds the app for production to the `dist` folder
-- **`npm run lint`** - Runs ESLint to check for code quality issues
-- **`npm run preview`** - Locally preview the production build
-
-## 🛠️ Tech Stack
-
-- **React 19** - UI library with modern hooks
-- **TypeScript** - Type safety and better developer experience
-- **Vite** - Fast build tool and development server
-- **Tailwind CSS** - Utility-first styling with custom medical interface design
-- **ESLint** - Code linting and formatting
-
-## 🏭 Backend Integration
-
-This frontend connects to the Elixir Backend (FastAPI) running on port 8000. Make sure the backend is running before starting the frontend application.
-
-### Environment Configuration
-
-Create a `.env` file in the root directory to configure backend connection:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000
-VITE_PLC_IP=192.168.2.1
-```
-
-## 🏗️ Project Structure
-
-```
-src/
-├── components/
-│   ├── chamber/        # Chamber-specific components
-│   ├── ui/            # Reusable UI components
-│   └── layout/        # Layout components
-├── pages/
-│   └── Dashboard.tsx  # Main control panel dashboard
-├── types/
-│   └── chamber.ts     # TypeScript definitions
-├── hooks/             # Custom React hooks
-├── services/          # API services and utilities
-└── utils/             # Helper functions
-```
-
-### Key Type Definitions
-
-```typescript
-// Chamber operational states
-enum ChamberStatus {
-  IDLE = 'idle',
-  PRESSURIZING = 'pressurizing',
-  TREATMENT = 'treatment',
-  DEPRESSURIZING = 'depressurizing',
-  EMERGENCY = 'emergency',
-  MAINTENANCE = 'maintenance'
-}
-
-// Core metrics interface
-interface ChamberMetrics {
-  pressure: { current: number; target: number; unit: string; };
-  oxygen: { level: number; unit: string; };
-  temperature: { current: number; unit: string; };
-  session: { elapsed: number; remaining: number; total: number; };
-}
-```
-
-## 🎨 Design System
-
-### Color Palette
-- **Status Colors**: Green (safe), Yellow (warning), Red (danger), Blue (info)
-- **UI Colors**: Slate backgrounds for professional medical interface
-- **Typography**: Optimized for control panel readability
-
-### Layout Grid
-- **Header**: 64px fixed height with branding and connection status
-- **Status Banner**: 48px chamber status indicator
-- **Main Content**: 8/12 columns (metrics) + 4/12 columns (controls)
-- **Metrics Cards**: Pressure, Oxygen, Temperature, Session Timer
-- **Controls**: Touch-friendly buttons with color coding
-
-## 🔧 Development Guidelines
-
-### Code Quality Standards
-- Follow TypeScript best practices
-- Use meaningful component and variable names
-- Write clean, readable code with proper comments
-- Ensure all components are properly typed
-- Run `npm run lint` before committing changes
-
-### Component Architecture
-- **Atomic Design**: Build reusable components
-- **Type Safety**: All props and states properly typed
-- **Medical Standards**: Follow medical interface guidelines
-- **Touch Accessibility**: Large touch targets for gloved operation
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **Port already in use**: If port 5173 is busy, Vite will automatically try the next available port
-2. **Backend connection issues**: Ensure the backend is running on port 8000
-3. **Display alignment**: Ensure 1280x720 resolution is set correctly
-4. **Node version compatibility**: Use Node.js 18+ for best compatibility
-
-### Getting Help
-
-If you encounter issues:
-
-1. Check the console for error messages
-2. Ensure all dependencies are installed correctly
-3. Verify the backend is running and accessible
-4. Check the network connection to the PLC system
-5. Verify display resolution is set to 1280x720
-
-## 📝 Contributing
-
-1. Create a feature branch from `main`
-2. Make your changes with proper TypeScript types
-3. Run `npm run lint` to check code quality
-4. Test your changes on 1280x720 display
-5. Submit a pull request with a clear description
-
-## 📄 License
-
-[Add your license information here]
-
----
-
-**O2genes Medical Systems**  
-For questions or support, please contact the development team.
-
-## 🌟 Features
-
-- **Comprehensive Backend Discovery**: Automatically scans entire IP ranges to find your backend server
-- **Smart Backend Verification**: Ensures discovered services are your specific backend (not random services)
-- **Full Network Range Scanning**: Tests complete subnet ranges (192.168.x.1-254) with configurable concurrency
-- **Network Device Support**: Works on any device in your local network
-- **Localhost Compatible**: Seamlessly works on both localhost and network devices
-- **Real-time Connection Status**: Visual feedback for backend connection status with detailed discovery info
-- **WebSocket Support**: Auto-discovery works for both HTTP API and WebSocket connections
-- **Development-Friendly**: Easy setup with extensive configuration options
-
-## 🚀 Quick Start
-
-### 1. Install Dependencies
-```bash
+# Install dependencies
 npm install
-```
 
-### 2. Configure Environment (Optional)
-Copy the example configuration:
-```bash
+# Copy environment configuration
 cp config.example.env .env.local
+
+# Configure your environment (see Configuration section)
+nano .env.local
 ```
 
-The comprehensive auto-discovery works out of the box, but you can customize it by editing `.env.local`:
+## ⚙️ Configuration
 
-```env
-# Basic Discovery Settings
+### Basic Configuration
+
+Copy `config.example.env` to `.env.local` and adjust settings:
+
+   ```bash
+# For automatic discovery (recommended)
 VITE_AUTO_DISCOVERY=true
 VITE_BACKEND_PORT=8000
-VITE_DISCOVERY_TIMEOUT=2000
 
-# IP Range Scanning
-VITE_SCAN_START=1
-VITE_SCAN_END=254
-VITE_MAX_CONCURRENT_SCANS=20
-VITE_QUICK_SCAN_ONLY=false
-
-# Backend Verification
-VITE_EXPECTED_SERVICE=elixir-backend
-VITE_EXPECTED_VERSION=^1\.
-```
-
-### 3. Start Development Server
-
-For **network access** (recommended):
-```bash
-npm run dev:network
-# or simply
-npm run dev
-```
-
-For **localhost only**:
-```bash
-npm run dev:local
-```
-
-## 🔧 Comprehensive Backend Discovery
-
-### How It Works
-
-The enhanced discovery system performs comprehensive network scanning with verification:
-
-1. **Environment Check**: First checks if `VITE_API_BASE_URL` and `VITE_WS_BASE_URL` are explicitly set
-2. **Local Priority**: Tests `localhost` and `127.0.0.1` first (highest priority)
-3. **Network Detection**: Automatically detects your local network IP and subnet
-4. **Full Range Scanning**: Tests entire IP ranges (1-254) across multiple subnets
-5. **Concurrent Testing**: Scans multiple IPs simultaneously with configurable concurrency limits
-6. **Service Verification**: Validates each discovered service is your specific backend
-7. **Intelligent Caching**: Caches results to avoid redundant testing
-8. **Smart Fallback**: Uses localhost as fallback if discovery fails
-
-### Discovery Process
-
-The system tests IPs in this optimized order:
-
-**Priority 1 - Local**:
-- `http://localhost:8000`
-- `http://127.0.0.1:8000`
-- `http://[your-detected-ip]:8000`
-
-**Priority 2 - Network Range Scanning**:
-- `192.168.1.1-254` (detected subnet)
-- `192.168.0.1-254` (common subnet)
-- `192.168.2.1-254` (alternative subnet)
-- `10.0.0.1-254` (corporate networks)
-- `10.0.1.1-254` (corporate networks)
-- `172.16.0.1-254` (Docker/container networks)
-
-**Concurrent Processing**: Tests up to 20 IPs simultaneously (configurable)
-
-### Backend Verification
-
-Each discovered service is verified to ensure it's your backend:
-
-1. **Health Endpoint**: Tests `/api/health` for 200 response
-2. **Service Identification**: Checks for expected service name (e.g., "elixir-backend")
-3. **Version Verification**: Validates API version matches expected pattern
-4. **Field Validation**: Ensures response contains required fields (`status`, `service`, `version`)
-5. **Additional Endpoints**: Tests `/api/status` and `/api/info` for completeness
-
-Example expected health response:
-```json
-{
-  "status": "healthy",
-  "service": "elixir-backend",
-  "version": "1.2.3",
-  "timestamp": "2024-01-01T12:00:00Z"
-}
-```
-
-### Configuration Options
-
-#### **Scan Range Configuration**
-```env
-# IP range to scan (default: 1-254)
-VITE_SCAN_START=1
-VITE_SCAN_END=254
-
-# Maximum concurrent scans (default: 20)
-VITE_MAX_CONCURRENT_SCANS=20
-
-# Quick scan - only test common IPs (default: false)
-VITE_QUICK_SCAN_ONLY=false
-```
-
-#### **Verification Settings**
-```env
-# Expected service name in health response
-VITE_EXPECTED_SERVICE=elixir-backend
-
-# Expected version pattern (regex)
-VITE_EXPECTED_VERSION=^1\.
-
-# Discovery timeout per attempt (default: 2000ms)
-VITE_DISCOVERY_TIMEOUT=2000
-```
-
-#### **Network-Specific Examples**
-
-**For Large Corporate Networks**:
-```env
-VITE_QUICK_SCAN_ONLY=true          # Only test common IPs
-VITE_MAX_CONCURRENT_SCANS=10       # Reduce network load
-VITE_DISCOVERY_TIMEOUT=1000        # Faster timeout
-```
-
-**For Home Networks**:
-```env
-VITE_QUICK_SCAN_ONLY=false         # Full range scan
-VITE_MAX_CONCURRENT_SCANS=30       # Higher concurrency
-VITE_DISCOVERY_TIMEOUT=3000        # Longer timeout
-```
-
-**For Specific Subnets**:
-```env
-VITE_SCAN_START=10                 # Start from .10
-VITE_SCAN_END=50                   # End at .50
-```
-
-### Advanced Connection Status
-
-Monitor the comprehensive discovery process:
-
-```tsx
-import { ConnectionStatus } from '@components/ConnectionStatus';
-
-function App() {
-  return (
-    <div>
-      {/* Basic status */}
-      <ConnectionStatus />
-      
-      {/* Detailed with discovery info */}
-      <ConnectionStatus 
-        showDetails={true} 
-        showControls={true}
-        showDiscoveryInfo={true}
-      />
-    </div>
-  );
-}
-```
-
-The enhanced status component shows:
-- ✅ **Connection Status**: Real-time backend connectivity
-- 🔍 **Discovery Progress**: Live scanning progress with animations
-- 📊 **Configuration Details**: Scan settings, verification rules, subnets
-- 🌐 **Network Information**: Detected subnets and IP ranges
-- 📋 **Cache Statistics**: Number of cached discovery results
-- 🛡️ **Verification Status**: Service validation confirmation
-
-## 📱 Network Access
-
-### Access from Other Devices
-
-1. Start the dev server with network access:
-   ```bash
-   npm run dev:network
-   ```
-
-2. The discovery system automatically detects your network configuration
-
-3. Access from any device on the same network:
-   ```
-   http://[your-ip]:5173
-   ```
-   Example: `http://192.168.1.50:5173`
-
-### Performance Optimization
-
-The system includes several optimizations:
-
-- **Intelligent Caching**: Results cached for 5 minutes
-- **Concurrent Scanning**: Configurable parallel testing
-- **Quick Scan Mode**: Test only common IPs for faster discovery
-- **Priority Ordering**: Local IPs tested first
-- **Smart Timeouts**: Configurable per-connection timeouts
-
-## 🛠️ Development Scripts
-
-- `npm run dev` - Start dev server with network access
-- `npm run dev:network` - Explicitly start with network access (0.0.0.0)
-- `npm run dev:local` - Start with localhost only
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
-- `npm run preview:network` - Preview production build with network access
-
-## 🔧 Troubleshooting
-
-### Backend Not Discovered
-
-1. **Check Backend Health Endpoint**: Ensure `/api/health` returns proper response:
-   ```json
-   {
-     "status": "healthy",
-     "service": "elixir-backend",
-     "version": "1.0.0"
-   }
-   ```
-
-2. **Verify Service Name**: Check if `VITE_EXPECTED_SERVICE` matches your backend's service identifier
-
-3. **Check Network Range**: Ensure your backend is in the scanned IP range (1-254)
-
-4. **Increase Concurrency**: Try `VITE_MAX_CONCURRENT_SCANS=50` for faster discovery
-
-5. **Enable Quick Scan**: Set `VITE_QUICK_SCAN_ONLY=true` for initial testing
-
-### Discovery Too Slow
-
-**For faster discovery**:
-```env
-VITE_QUICK_SCAN_ONLY=true          # Test only common IPs
-VITE_MAX_CONCURRENT_SCANS=50       # Higher concurrency
-VITE_DISCOVERY_TIMEOUT=1000        # Shorter timeout
-VITE_SCAN_START=1                  # Smaller range
-VITE_SCAN_END=50
-```
-
-### False Positives
-
-**If connecting to wrong services**:
-```env
-VITE_EXPECTED_SERVICE=my-specific-backend    # Unique service name
-VITE_EXPECTED_VERSION=^2\.1\.                # Specific version pattern
-```
-
-### Network Issues
-
-**For firewall/network problems**:
-```env
-VITE_DISCOVERY_TIMEOUT=5000        # Longer timeout
-VITE_MAX_CONCURRENT_SCANS=5        # Reduce network load
-```
-
-### Manual Override
-
-**Bypass discovery entirely**:
-```env
+# For manual configuration
 VITE_API_BASE_URL=http://192.168.1.100:8000
 VITE_WS_BASE_URL=ws://192.168.1.100:8000
 VITE_AUTO_DISCOVERY=false
 ```
 
-## 🏗️ Architecture
+### Mock System Configuration
 
-### Enhanced Discovery Components
+#### Frontend-Only Development
+For development without PLC hardware:
 
-- **`connection.config.ts`**: Comprehensive discovery with IP range scanning and verification
-- **`api.service.ts`**: Enhanced API service with discovery integration
-- **`useBackendConnection.ts`**: React hook for connection management
-- **`ConnectionStatus.tsx`**: Advanced UI component with detailed discovery information
+   ```bash
+# Enable complete mock mode
+VITE_MOCK_MODE=true
+VITE_MOCK_PLC_DATA=true
+VITE_MOCK_WEBSOCKET=true
+VITE_MOCK_API=true
+VITE_AUTO_DISCOVERY=false
 
-### Configuration Reference
+# Optional: Set initial scenario
+VITE_MOCK_DEFAULT_SCENARIO=normal
+VITE_MOCK_UPDATE_FREQUENCY=1000
+```
 
-All configuration is done through environment variables:
+#### Partial Mock Mode
+Mix real backend with mock PLC data:
+
+```bash
+# Use real backend but mock PLC hardware
+VITE_MOCK_PLC_DATA=true
+VITE_MOCK_WEBSOCKET=true
+VITE_MOCK_API=false
+```
+
+#### Network Testing
+Simulate network conditions:
+
+```bash
+# Add realistic delays and errors
+VITE_MOCK_API_DELAY_MIN=200
+VITE_MOCK_API_DELAY_MAX=1000
+VITE_MOCK_ERROR_RATE=0.1
+VITE_MOCK_WS_DISCONNECTIONS=true
+```
+
+### Network Discovery Configuration
+
+#### Home Networks
+```bash
+VITE_QUICK_SCAN_ONLY=false
+VITE_MAX_CONCURRENT_SCANS=30
+VITE_SCAN_START=1
+VITE_SCAN_END=254
+```
+
+#### Corporate Networks
+```bash
+VITE_QUICK_SCAN_ONLY=true
+VITE_MAX_CONCURRENT_SCANS=10
+VITE_SCAN_START=10
+VITE_SCAN_END=50
+```
+
+## 🏃 Running the Application
+
+### Development Mode
+
+```bash
+# Start development server
+npm run dev
+
+# Development with network access (for testing on other devices)
+npm run dev:network
+
+# Frontend-only development (no backend required)
+npm run dev:mock
+```
+
+### Production Build
+
+   ```bash
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Serve on network
+npm run preview:network
+```
+
+## 🎭 Mock System
+
+The mock system enables complete frontend development without requiring PLC hardware or backend services.
+
+### Available Mock Scenarios
+
+1. **Normal Operation**: Idle chamber with stable pressure
+2. **Pressurizing**: Chamber pressurizing to treatment level (30s auto-advance)
+3. **Treatment**: Active treatment session with high oxygen
+4. **Depressurizing**: Safe pressure reduction (45s auto-advance)
+5. **Emergency**: Rapid emergency decompression (10s auto-advance)
+6. **Maintenance**: System in maintenance mode
+7. **Offline**: PLC communication lost
+8. **Startup**: System initialization and self-tests (15s auto-advance)
+
+### Mock Data Features
+
+#### Realistic PLC Data
+- Authentic hyperbaric chamber parameters
+- Dynamic pressure changes with realistic fluctuations
+- Temperature, humidity, and oxygen readings
+- Session timers and state management
+- Communication error simulation
+
+#### Interactive Controls
+- Control panel simulation (lights, AC, intercom)
+- Pressure setpoint adjustment
+- Session start/stop functionality
+- Alarm triggering and clearing
+- Real-time data manipulation
+
+### Developer Controls
+
+The mock system includes a developer control panel accessible when mock mode is enabled:
+
+#### Scenario Management
+- Switch between operation scenarios
+- View current status and parameters
+- Auto-advancing scenarios with realistic timing
+
+#### Testing Tools
+- Trigger specific alarms (pressure, oxygen, temperature)
+- Simulate network issues and API errors
+- Control update frequency (100ms to 5s)
+- Adjust error rates and network delays
+
+#### Performance Testing
+- High-frequency data updates (stress testing)
+- Network disconnection simulation
+- API timeout and retry testing
+- WebSocket reconnection scenarios
+
+### Using the Mock System
+
+#### Enable Mock Mode
+
+1. **Environment Configuration**:
+   ```bash
+   # In .env.local
+   VITE_MOCK_MODE=true
+   VITE_MOCK_PLC_DATA=true
+   VITE_MOCK_WEBSOCKET=true
+   VITE_MOCK_API=true
+   ```
+
+2. **Start Development Server**:
+   ```bash
+   npm run dev:mock
+   ```
+
+3. **Access Developer Controls**:
+   - Controls appear automatically in mock mode
+   - Located in top-right corner of the application
+   - Minimize/maximize for better screen real estate
+
+#### Testing Scenarios
+
+1. **Basic Operations**:
+   - Start with "Normal Operation" scenario
+   - Test UI responsiveness with real-time data
+   - Verify control interactions
+
+2. **Session Testing**:
+   - Use "Start Session" to trigger pressurization
+   - Watch automatic scenario progression
+   - Test session controls and indicators
+
+3. **Emergency Scenarios**:
+   - Switch to "Emergency" scenario
+   - Verify alarm displays and emergency procedures
+   - Test rapid data updates
+
+4. **Network Issues**:
+   - Use "API Errors" and "WS Issues" buttons
+   - Test reconnection logic
+   - Verify error handling and user feedback
+
+#### Mock API Endpoints
+
+All backend API endpoints are mocked with realistic responses:
+
+```typescript
+// Health check
+GET /health
+// Returns: { status: 'healthy', service: 'elixir-backend', mode: 'mock' }
+
+// System status
+GET /api/status/system
+// Returns: Complete PLCStatus object with current mock data
+
+// Control commands
+POST /api/control/lights/ceiling/toggle
+POST /api/pressure/setpoint
+POST /api/session/start
+// All return appropriate success/error responses with delays
+```
+
+#### Mock WebSocket Messages
+
+Real-time data streaming with configurable behavior:
+
+```typescript
+// Automatic status updates
+{
+  timestamp: "2024-01-01T12:00:00Z",
+  type: "status_update",
+  data: { /* Complete PLCStatus */ }
+}
+
+// Connection simulation
+- Configurable connection delays
+- Periodic disconnections (optional)
+- Network jitter simulation
+- Bandwidth optimization (only send on changes)
+```
+
+## 🔧 Development
+
+### Project Structure
+
+```
+src/
+├── components/           # React components
+│   ├── ConnectionStatus.tsx    # Connection monitoring
+│   └── MockControls.tsx        # Developer controls
+├── config/              # Configuration
+│   ├── connection.config.ts    # Connection settings
+│   └── api-endpoints.ts        # API definitions
+├── mocks/               # Mock system
+│   ├── plc-data.mock.ts        # PLC data generation
+│   ├── api.mock.ts             # API response mocking
+│   └── websocket.mock.ts       # WebSocket simulation
+├── services/            # Service layer
+│   └── api.service.ts          # HTTP client
+└── hooks/               # Custom React hooks
+    └── useBackendConnection.ts # Connection management
+```
+
+### Adding New Mock Scenarios
+
+1. **Define Scenario**:
+   ```typescript
+   // In src/mocks/plc-data.mock.ts
+   export const NEW_SCENARIO: MockScenario = {
+     id: 'new_scenario',
+     name: 'New Scenario',
+     description: 'Description of the scenario',
+     duration: 10000, // Optional auto-advance
+     nextScenario: 'normal', // Optional next scenario
+   };
+   ```
+
+2. **Implement Behavior**:
+   ```typescript
+   private updateNewScenario(elapsed: number): void {
+     // Update mock data based on scenario logic
+     this.baseData.pressure.internal_pressure_1 = /* custom logic */;
+     this.baseData.session.running_state = /* custom state */;
+   }
+   ```
+
+3. **Add to Switch Statement**:
+   ```typescript
+   switch (scenario.id) {
+     case 'new_scenario':
+       this.updateNewScenario(elapsed);
+       break;
+   }
+   ```
+
+### Customizing Mock Behavior
+
+#### Data Generation
+```typescript
+// Custom sensor readings
+this.baseData.sensors.current_temperature = baseTemp + Math.sin(elapsed / 1000) * variation;
+
+// Custom pressure changes
+this.baseData.pressure.internal_pressure_1 = calculatePressure(elapsed, scenario);
+
+// Custom session states
+this.baseData.session.running_state = isSessionActive(elapsed);
+```
+
+#### Network Simulation
+```typescript
+// Custom API delays
+mockApiService.configure({
+  responseDelay: { min: 100, max: 2000 },
+  errorRate: 0.15, // 15% error rate
+  networkJitter: true
+});
+
+// WebSocket behavior
+mockWebSocketService.configure({
+  connectionDelay: 2000,
+  simulateDisconnections: true,
+  disconnectionRate: 0.02 // 2% chance
+});
+```
+
+## 🌐 Network Discovery
+
+### How It Works
+
+The application automatically discovers backend services using:
+
+1. **Local IP Detection**: Uses WebRTC to detect the device's local IP
+2. **Network Range Scanning**: Tests multiple IP ranges simultaneously
+3. **Service Verification**: Confirms services are authentic Elixir backends
+4. **Health Checking**: Validates service functionality before connection
+
+### Supported Networks
+
+- **Home Networks**: 192.168.1.x, 192.168.0.x
+- **Corporate Networks**: 10.0.0.x, 10.0.1.x, 172.16.0.x
+- **Alternative Ranges**: 192.168.2.x
+
+### Discovery Process
+
+1. **Quick Scan** (optional): Tests common IP addresses first
+2. **Full Range Scan**: Comprehensive scanning of configured ranges
+3. **Concurrent Processing**: Up to 20 simultaneous connection attempts
+4. **Caching**: 5-minute cache to avoid redundant scans
+5. **Verification**: Service name, version, and endpoint validation
+
+### Troubleshooting Discovery
+
+#### Common Issues
+
+1. **No Backend Found**:
+   - Verify backend is running on expected port
+   - Check firewall settings
+   - Ensure same network segment
+
+2. **Slow Discovery**:
+   - Enable quick scan mode: `VITE_QUICK_SCAN_ONLY=true`
+   - Reduce concurrent scans: `VITE_MAX_CONCURRENT_SCANS=10`
+   - Limit scan range: `VITE_SCAN_START=10 VITE_SCAN_END=50`
+
+3. **False Connections**:
+   - Verify service verification settings
+   - Check `VITE_EXPECTED_SERVICE` and `VITE_EXPECTED_VERSION`
+
+#### Manual Configuration
+
+If auto-discovery fails, manually configure:
+
+```bash
+# .env.local
+VITE_API_BASE_URL=http://192.168.1.100:8000
+VITE_WS_BASE_URL=ws://192.168.1.100:8000
+VITE_AUTO_DISCOVERY=false
+```
+
+## 📱 Device Compatibility
+
+### Supported Devices
+- **Desktop**: Windows, macOS, Linux browsers
+- **Tablets**: iPad, Android tablets
+- **Mobile**: iOS Safari, Android Chrome (limited functionality)
+
+### Network Requirements
+- **WiFi**: Must be on same network as backend
+- **Ethernet**: Direct network access
+- **Mobile Hotspot**: May work if backend accessible
+
+### Browser Support
+- Chrome/Chromium 90+
+- Firefox 90+
+- Safari 14+
+- Edge 90+
+
+## 🔍 Monitoring and Debugging
+
+### Connection Status
+
+The application provides detailed connection monitoring:
+
+- **Discovery Progress**: Live scan progress and results
+- **Connection Quality**: Latency and error rates
+- **Service Information**: Backend version and capabilities
+- **Network Statistics**: IP ranges, scan times, cache status
+
+### Debug Mode
+
+Enable detailed logging:
+
+```bash
+VITE_DEBUG_MODE=true
+VITE_CONSOLE_LOGGING=true
+```
+
+### Log Categories
+
+- **🔍 Discovery**: Backend discovery process
+- **🔌 Connection**: WebSocket connections
+- **📡 API**: HTTP request/response
+- **🎭 Mock**: Mock system operations
+- **⚠️ Error**: Error conditions and recovery
+
+## 🚀 Production Deployment
+
+### Build Configuration
+
+```bash
+# Production environment variables
+VITE_NODE_ENV=production
+VITE_AUTO_DISCOVERY=true
+VITE_QUICK_SCAN_ONLY=true
+VITE_DEBUG_MODE=false
+VITE_MOCK_MODE=false
+
+# Timeout adjustments
+VITE_API_TIMEOUT=10000
+VITE_WS_CONNECTION_TIMEOUT=15000
+
+# Security
+VITE_MAX_CONCURRENT_SCANS=10
+```
+
+### Build and Deploy
+
+```bash
+# Build for production
+npm run build
+
+# Serve locally (testing)
+npm run preview:network
+
+# Deploy to web server
+cp -r dist/* /var/www/html/
+```
+
+### Production Considerations
+
+1. **Network Security**: Ensure backend ports are accessible
+2. **Firewall Rules**: Allow HTTP/WebSocket connections
+3. **Resource Limits**: Adjust scan concurrency for server load
+4. **Monitoring**: Enable error reporting and analytics
+5. **Backup**: Configure fallback backend URLs
+
+## 🧪 Testing
+
+### Mock System Testing
+
+```bash
+# Run with different scenarios
+VITE_MOCK_DEFAULT_SCENARIO=emergency npm run dev:mock
+VITE_MOCK_UPDATE_FREQUENCY=100 npm run dev:mock
+
+# Test error conditions
+VITE_MOCK_ERROR_RATE=0.5 npm run dev:mock
+VITE_MOCK_WS_DISCONNECTIONS=true npm run dev:mock
+```
+
+### Network Testing
+
+```bash
+# Test discovery on different networks
+VITE_SCAN_START=1 VITE_SCAN_END=10 npm run dev
+
+# Test manual configuration
+VITE_AUTO_DISCOVERY=false VITE_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+### Integration Testing
+
+1. **Backend Integration**: Test with real backend service
+2. **PLC Integration**: Verify with actual PLC hardware
+3. **Network Simulation**: Test various network conditions
+4. **Device Testing**: Verify on different devices/browsers
+
+## 📚 API Reference
+
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VITE_AUTO_DISCOVERY` | `true` | Enable/disable auto-discovery |
-| `VITE_BACKEND_PORT` | `8000` | Backend port to search for |
-| `VITE_DISCOVERY_TIMEOUT` | `2000` | Timeout per connection attempt (ms) |
-| `VITE_SCAN_START` | `1` | Start of IP range to scan |
-| `VITE_SCAN_END` | `254` | End of IP range to scan |
-| `VITE_MAX_CONCURRENT_SCANS` | `20` | Maximum parallel scans |
-| `VITE_QUICK_SCAN_ONLY` | `false` | Only scan common IPs |
-| `VITE_EXPECTED_SERVICE` | `elixir-backend` | Expected service identifier |
-| `VITE_EXPECTED_VERSION` | `^1\.` | Expected version pattern (regex) |
-| `VITE_API_BASE_URL` | Auto-discovered | Manual API URL override |
-| `VITE_WS_BASE_URL` | Auto-discovered | Manual WebSocket URL override |
+| `VITE_MOCK_MODE` | `false` | Enable complete mock mode |
+| `VITE_MOCK_PLC_DATA` | `false` | Mock PLC data generation |
+| `VITE_MOCK_API` | `false` | Mock API responses |
+| `VITE_MOCK_WEBSOCKET` | `false` | Mock WebSocket connections |
+| `VITE_AUTO_DISCOVERY` | `true` | Enable backend discovery |
+| `VITE_BACKEND_PORT` | `8000` | Backend service port |
+| `VITE_MAX_CONCURRENT_SCANS` | `20` | Concurrent discovery attempts |
+| `VITE_QUICK_SCAN_ONLY` | `false` | Quick scan mode |
 
-### Discovery Statistics
+### Mock API
 
-The system provides detailed discovery statistics:
+#### Configuration
+```typescript
+import { mockApiService } from './mocks/api.mock';
 
-- **Scan Coverage**: Number of IPs tested across subnets
-- **Cache Performance**: Hit rate for cached results
-- **Verification Success**: Rate of successful service verification
-- **Discovery Time**: Time taken for complete network scan
+mockApiService.configure({
+  responseDelay: { min: 100, max: 500 },
+  errorRate: 0.05,
+  networkJitter: true
+});
+```
 
-## 📝 License
+#### Available Methods
+- `getHealth()`: Health check endpoint
+- `getSystemStatus()`: Complete PLC status
+- `toggleCeilingLights()`: Control ceiling lights
+- `startSession()`: Start treatment session
+- `setPressureSetpoint(pressure)`: Set pressure target
+- `triggerAlarm(type)`: Trigger alarm conditions
+- `injectError(duration)`: Simulate API errors
 
-This project is licensed under the MIT License.
+### Mock Data
+
+#### PLC Data Generation
+```typescript
+import { plcDataMock } from './mocks/plc-data.mock';
+
+// Subscribe to data updates
+const unsubscribe = plcDataMock.subscribe((data) => {
+  console.log('PLC Data:', data);
+});
+
+// Control scenarios
+plcDataMock.setScenario('emergency');
+plcDataMock.setUpdateFrequency(500);
+plcDataMock.triggerAlarm('pressure_high');
+```
+
+#### Available Scenarios
+- `normal`: Standard operation
+- `pressurizing`: Pressure increasing
+- `treatment`: Active treatment
+- `depressurizing`: Pressure decreasing  
+- `emergency`: Emergency decompression
+- `maintenance`: Maintenance mode
+- `offline`: Connection lost
+- `startup`: System initialization
+
+## 🤝 Contributing
+
+### Development Setup
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/new-feature`
+3. Install dependencies: `npm install`
+4. Start development: `npm run dev:mock`
+5. Make changes and test thoroughly
+6. Submit pull request
+
+### Code Style
+
+- TypeScript for type safety
+- ESLint for code quality
+- Prettier for formatting
+- React hooks for state management
+- TailwindCSS for styling
+
+### Testing Guidelines
+
+1. **Unit Tests**: Test individual components
+2. **Integration Tests**: Test mock system integration
+3. **E2E Tests**: Test complete user workflows
+4. **Network Tests**: Test discovery and connections
+5. **Device Tests**: Test on multiple devices
+
+## 📄 License
+
+[Add your license information here]
+
+## 🆘 Support
+
+For support and questions:
+
+1. **Check Documentation**: Review this README thoroughly
+2. **Debug Mode**: Enable debug logging for detailed information
+3. **Mock Mode**: Use mock system to isolate issues
+4. **Network Testing**: Verify network connectivity and discovery
+5. **Issue Reports**: Provide detailed logs and environment configuration
+
+---
+
+**Happy coding! 🚀** The mock system enables rapid frontend development and testing without requiring physical PLC hardware.

@@ -146,19 +146,39 @@ export interface PLCStatus {
   };
   
   session: {
-    running_state: boolean;
+    // Mutually exclusive session states
+    equalise_state: boolean;
     pressuring_state: boolean;
     stabilising_state: boolean;
     depressurise_state: boolean;
+    
+    // Session control flags
+    running_state: boolean;  // True when session is active (pressuring/stabilising/depressurising)
+    stop_state: boolean;     // True only when depressurisation is completed
+    
+    // Session flags
     session_ended: boolean;
     depressurise_confirm: boolean;
   };
   
   modes: {
-    current_mode: number;
+    // Operating modes (mutually exclusive)
+    mode_rest: boolean;
+    mode_health: boolean;
+    mode_professional: boolean;
+    mode_custom: boolean;
+    mode_o2_100: boolean;
+    mode_o2_120: boolean;
     custom_duration: number;
-    compression_mode: number;
-    oxygen_mode: number;
+    
+    // Compression modes (mutually exclusive)
+    compression_beginner: boolean;
+    compression_normal: boolean;
+    compression_fast: boolean;
+    
+    // Oxygen delivery modes (mutually exclusive)
+    continuous_o2_flag: boolean;
+    intermittent_o2_flag: boolean;
   };
   
   climate: {

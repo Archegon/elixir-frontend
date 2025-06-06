@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, containerClasses, getStatusIndicatorStyle } from '../../utils/containerStyles';
-import { Palette, Home, Settings, BarChart3, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Palette, Home, Settings, BarChart3, Bell, ChevronLeft, ChevronRight, TestTube } from 'lucide-react';
 
 interface SideNavbarProps {
   onThemeModalOpen: () => void;
   onEnvControls?: () => void;
+  onMockControls?: () => void;
 }
 
-const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls }) => {
+const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls, onMockControls }) => {
   const { currentTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Check if mock mode is enabled
+  const isMockMode = import.meta.env.VITE_MOCK_MODE === 'true' ||
+                     import.meta.env.VITE_MOCK_PLC_DATA === 'true' ||
+                     import.meta.env.VITE_MOCK_API === 'true' ||
+                     import.meta.env.VITE_MOCK_WEBSOCKET === 'true';
 
   const navigationItems = [
     { icon: Home, label: 'Dashboard', active: true },
@@ -194,6 +201,32 @@ const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls
               }}
             >
               Environmental
+            </span>
+          </button>
+        )}
+
+        {/* Mock Controls Button - Only visible in mock mode */}
+        {isMockMode && onMockControls && (
+          <button
+            onClick={onMockControls}
+            className="w-full flex items-center rounded-lg text-xs font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] min-w-0 h-8 px-3"
+            style={{ 
+              backgroundColor: `${currentTheme.colors.warning}20`,
+              color: currentTheme.colors.warning,
+              border: `1px solid ${currentTheme.colors.warning}30`
+            }}
+            title={isCollapsed ? 'Mock Controls' : undefined}
+          >
+            <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+              <TestTube size={14} />
+            </div>
+            <span 
+              className={`ml-3 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}
+              style={{ 
+                transitionDelay: isCollapsed ? '0ms' : '150ms'
+              }}
+            >
+              Mock Controls
             </span>
           </button>
         )}
