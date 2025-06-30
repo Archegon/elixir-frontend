@@ -89,7 +89,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const handleStatusUpdate = (status: PLCStatus) => {
       setPLCStatus(status);
-      setIsPasswordModalOpen(status.auth.show_password);
+      setIsPasswordModalOpen(status.auth.show_password_screen);
     };
 
     // Subscribe to PLC status updates

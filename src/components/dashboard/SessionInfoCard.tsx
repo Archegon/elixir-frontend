@@ -221,7 +221,7 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
           className="text-sm font-medium"
           style={{ color: currentTheme.colors.textSecondary }}
         >
-          Remaining: {currentStatus ? formatTime(currentStatus.timers.run_time_remaining_min * 60) : '--:--'}
+          Remaining: {currentStatus ? formatTime(currentStatus.timers.run_time_remaining_sec) : '--:--'}
         </p>
       </div>
 

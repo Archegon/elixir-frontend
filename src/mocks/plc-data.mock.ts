@@ -85,7 +85,7 @@ export class PLCDataMock {
       timestamp: new Date().toISOString(),
       
       auth: {
-        show_password: false,
+        show_password_screen: false,
         proceed_status: false,
         change_password_status: false,
         admin_password: 1234,
@@ -295,7 +295,7 @@ export class PLCDataMock {
     
     // Only reset pressure setpoint if user hasn't manually set it
     if (!this.userSetPressure) {
-      this.baseData.pressure.setpoint = 1.0;
+      this.baseData.pressure.setpoint = 28.6; // 1.0 ATA in backend units
     }
     
     // Don't reset modes if user has set them manually
@@ -328,6 +328,7 @@ export class PLCDataMock {
     
     this.baseData.timers.session_elapsed_time = Math.floor(elapsed / 1000);
     this.baseData.timers.run_time_remaining_min = Math.max(0, 60 - Math.floor(elapsed / 60000));
+    this.baseData.timers.run_time_remaining_sec = Math.max(0, (60 * 60) - Math.floor(elapsed / 1000)); // 60 minutes in seconds
     
     this.baseData.control_panel.ceiling_lights_state = true;
   }
@@ -351,6 +352,7 @@ export class PLCDataMock {
     
     this.baseData.timers.session_elapsed_time = Math.floor((Date.now() - this.startTime) / 1000);
     this.baseData.timers.run_time_remaining_min = Math.max(0, 45 - Math.floor(elapsed / 60000));
+    this.baseData.timers.run_time_remaining_sec = Math.max(0, (45 * 60) - Math.floor(elapsed / 1000)); // 45 minutes in seconds
     
     this.baseData.control_panel.ceiling_lights_state = true;
     this.baseData.control_panel.ac_state = true;
@@ -373,6 +375,8 @@ export class PLCDataMock {
     this.baseData.pressure.setpoint = 28.6; // 1.0 ATA in backend units
     
     this.baseData.timers.session_elapsed_time = Math.floor((Date.now() - this.startTime) / 1000);
+    this.baseData.timers.run_time_remaining_sec = 0; // No time remaining during depressurization
+    this.baseData.timers.run_time_remaining_min = 0;
     
     // Gradually return oxygen to normal
     this.baseData.sensors.ambient_o2 = Math.max(21, 95 - (progress * 74));
@@ -742,12 +746,12 @@ export class PLCDataMock {
 
   // Password Authentication Methods
   triggerPasswordRequest(): void {
-    this.baseData.auth.show_password = true;
+    this.baseData.auth.show_password_screen = true;
     this.notifyListeners();
   }
 
   cancelPasswordRequest(): void {
-    this.baseData.auth.show_password = false;
+    this.baseData.auth.show_password_screen = false;
     this.baseData.auth.proceed_status = false;
     this.baseData.auth.change_password_status = false;
     this.notifyListeners();
@@ -779,7 +783,7 @@ export class PLCDataMock {
   // Method to actually proceed (when proceed button is pressed with valid password)
   confirmPasswordProceed(): void {
     if (this.baseData.auth.proceed_status) {
-      this.baseData.auth.show_password = false;
+      this.baseData.auth.show_password_screen = false;
       this.baseData.auth.proceed_status = false; // Reset for next time
       this.notifyListeners();
     }
@@ -789,12 +793,12 @@ export class PLCDataMock {
     // Check if old password matches
     if (oldPassword === String(this.baseData.auth.user_password)) {
       this.baseData.auth.user_password = parseInt(newPassword);
-      this.baseData.auth.show_password = false;
+      this.baseData.auth.show_password_screen = false;
       this.baseData.auth.change_password_status = true;
       this.baseData.auth.proceed_status = false;
     } else if (oldPassword === String(this.baseData.auth.admin_password)) {
       this.baseData.auth.admin_password = parseInt(newPassword);
-      this.baseData.auth.show_password = false;
+      this.baseData.auth.show_password_screen = false;
       this.baseData.auth.change_password_status = true;
       this.baseData.auth.proceed_status = false;
     } else {
