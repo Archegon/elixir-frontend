@@ -67,7 +67,7 @@ export const DISCOVERY_CONFIG = {
     EXPECTED_VERSION_PATTERN: getEnvVar('VITE_EXPECTED_VERSION', '^1\\.'),
     
     // Additional endpoints to verify
-    VERIFY_ENDPOINTS: ['/api/health', '/api/status', '/api/info'],
+    VERIFY_ENDPOINTS: ['/health'],
     
     // Expected response structure indicators
     EXPECTED_FIELDS: ['status', 'service', 'version'],
@@ -346,7 +346,7 @@ class BackendDiscovery {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), DISCOVERY_CONFIG.CHECK_TIMEOUT);
 
-      const response = await fetch(`${url}/api/health`, {
+      const response = await fetch(`${url}/health`, {
         method: 'GET',
         signal: controller.signal,
         mode: 'cors',
@@ -378,7 +378,7 @@ class BackendDiscovery {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), DISCOVERY_CONFIG.CHECK_TIMEOUT);
 
-        response = await fetch(`${url}/api/health`, {
+        response = await fetch(`${url}/health`, {
           method: 'GET',
           signal: controller.signal,
           mode: 'cors',
@@ -419,8 +419,9 @@ class BackendDiscovery {
         return false;
       }
 
-      // Additional endpoint verification
-      for (const endpoint of DISCOVERY_CONFIG.VERIFICATION.VERIFY_ENDPOINTS.slice(1)) {
+      // Additional endpoint verification (skip first endpoint as it's already tested)
+      const additionalEndpoints = DISCOVERY_CONFIG.VERIFICATION.VERIFY_ENDPOINTS.slice(1);
+      for (const endpoint of additionalEndpoints) {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 1000);
