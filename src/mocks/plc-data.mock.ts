@@ -77,6 +77,24 @@ export class PLCDataMock {
 
   constructor() {
     this.baseData = this.createBaseData();
+    
+    // Ensure O2 flags are properly set from initialization
+    this.ensureO2FlagsConsistency();
+    
+    // Debug log initial pressure values and O2 modes
+    console.log('🔧 Mock System Initialized with:', {
+      pressure: {
+        setpoint: this.baseData.pressure.setpoint,
+        internal_1: this.baseData.pressure.internal_pressure_1,
+        internal_2: this.baseData.pressure.internal_pressure_2,
+      },
+      o2_modes: {
+        continuous_flag: this.baseData.modes.continuous_o2_flag,
+        intermittent_flag: this.baseData.modes.intermittent_o2_flag
+      },
+      scenario: this.currentScenario
+    });
+    
     this.startUpdates();
   }
 
@@ -288,10 +306,10 @@ export class PLCDataMock {
     this.baseData.system.plc_connected = true;
     this.setSessionState('equalise'); // Idle state
     
-    // Slight pressure fluctuation around setpoint
+    // Slight pressure fluctuation around setpoint (in backend units)
     const setpoint = this.baseData.pressure.setpoint;
-    this.baseData.pressure.internal_pressure_1 = setpoint + (Math.sin(elapsed / 10000) * 0.02);
-    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.01;
+    this.baseData.pressure.internal_pressure_1 = setpoint + (Math.sin(elapsed / 10000) * 0.6); // ±0.6 backend units ≈ ±0.02 ATA
+    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.3; // ±0.3 backend units ≈ ±0.01 ATA
     
     // Only reset pressure setpoint if user hasn't manually set it
     if (!this.userSetPressure) {
@@ -305,6 +323,9 @@ export class PLCDataMock {
       this.setCompressionMode('normal');
       this.setOxygenMode('continuous');
     }
+    
+    // Ensure O2 flags are always mutually exclusive (safety check)
+    this.ensureO2FlagsConsistency();
     
     this.baseData.timers.run_time_remaining_sec = 0;
     this.baseData.timers.run_time_remaining_min = 0;
@@ -485,6 +506,22 @@ export class PLCDataMock {
         console.error('Error in mock data listener:', error);
       }
     });
+    
+    // Debug pressure and O2 values occasionally
+    if (Math.random() < 0.1) { // 10% chance to log
+      console.log('🔧 Mock Values:', {
+        pressure: {
+          setpoint: this.baseData.pressure.setpoint,
+          internal_1: this.baseData.pressure.internal_pressure_1,
+          internal_2: this.baseData.pressure.internal_pressure_2,
+        },
+        o2_flags: {
+          continuous: this.baseData.modes.continuous_o2_flag,
+          intermittent: this.baseData.modes.intermittent_o2_flag
+        },
+        scenario: this.currentScenario
+      });
+    }
   }
 
   // Manually trigger specific events
@@ -589,14 +626,20 @@ export class PLCDataMock {
   }
 
   private setOxygenMode(mode: 'continuous' | 'intermittent'): void {
-    // Reset all oxygen mode flags
+    // Reset all oxygen mode flags (mutually exclusive)
     this.baseData.modes.continuous_o2_flag = false;
     this.baseData.modes.intermittent_o2_flag = false;
     
     // Set the active oxygen mode
     switch (mode) {
-      case 'continuous': this.baseData.modes.continuous_o2_flag = true; break;
-      case 'intermittent': this.baseData.modes.intermittent_o2_flag = true; break;
+      case 'continuous': 
+        this.baseData.modes.continuous_o2_flag = true; 
+        console.log('🔧 Mock: Set O2 mode to CONTINUOUS');
+        break;
+      case 'intermittent': 
+        this.baseData.modes.intermittent_o2_flag = true; 
+        console.log('🔧 Mock: Set O2 mode to INTERMITTENT');
+        break;
     }
   }
 
@@ -806,6 +849,19 @@ export class PLCDataMock {
       this.baseData.auth.change_password_status = false;
     }
     this.notifyListeners();
+  }
+
+  // Ensure O2 flags are always mutually exclusive and one is active
+  private ensureO2FlagsConsistency(): void {
+    const continuous = this.baseData.modes.continuous_o2_flag;
+    const intermittent = this.baseData.modes.intermittent_o2_flag;
+    
+    // If both are false or both are true, default to continuous
+    if ((!continuous && !intermittent) || (continuous && intermittent)) {
+      this.baseData.modes.continuous_o2_flag = true;
+      this.baseData.modes.intermittent_o2_flag = false;
+      console.log('🔧 Mock: Fixed O2 flags - defaulted to CONTINUOUS');
+    }
   }
 
   // Get current data snapshot

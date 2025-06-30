@@ -116,9 +116,26 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     if (!currentStatus) return 'Unknown';
     // Check which oxygen mode flag is active (mutually exclusive)
     const modes = currentStatus.modes;
-    if (modes.continuous_o2_flag) return 'Continuous';
-    if (modes.intermittent_o2_flag) return 'Intermittent';
-    return 'Unknown O2 Mode';
+    
+    // Debug logging for O2 flags (development only)
+    if (import.meta.env.MODE === 'development') {
+      console.log('🔧 O2 Delivery Debug:', {
+        continuous_flag: modes.continuous_o2_flag,
+        intermittent_flag: modes.intermittent_o2_flag,
+        modes_object: modes
+      });
+    }
+    
+    // Ensure mutually exclusive flags
+    if (modes.continuous_o2_flag && !modes.intermittent_o2_flag) return 'Continuous';
+    if (modes.intermittent_o2_flag && !modes.continuous_o2_flag) return 'Intermittent';
+    
+    // If both or neither are set, default to continuous (shouldn't happen with proper backend)
+    console.warn('⚠️ O2 delivery flags inconsistent:', {
+      continuous: modes.continuous_o2_flag,
+      intermittent: modes.intermittent_o2_flag
+    });
+    return 'Continuous (Default)';
   };
 
   const calculateProgress = (): number => {

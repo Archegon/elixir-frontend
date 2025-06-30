@@ -67,8 +67,21 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
     // Based on user feedback: 40.0 backend units = 1.4 ATA, so conversion factor is 0.035
     const PRESSURE_CONVERSION_FACTOR = 0.035;
     
-    const current = (plcData.pressure.internal_pressure_1 || 0) * PRESSURE_CONVERSION_FACTOR;
-    const target = (plcData.pressure.setpoint || 0) * PRESSURE_CONVERSION_FACTOR;
+    const rawCurrent = plcData.pressure.internal_pressure_1 || 0;
+    const rawTarget = plcData.pressure.setpoint || 0;
+    
+    // Debug logging for pressure conversion (development only)
+    if (import.meta.env.MODE === 'development' && (rawCurrent > 0 || rawTarget > 0)) {
+      console.log('🔧 Pressure Debug:', {
+        raw_current: rawCurrent,
+        raw_target: rawTarget,
+        converted_current: rawCurrent * PRESSURE_CONVERSION_FACTOR,
+        converted_target: rawTarget * PRESSURE_CONVERSION_FACTOR
+      });
+    }
+    
+    const current = rawCurrent * PRESSURE_CONVERSION_FACTOR;
+    const target = rawTarget * PRESSURE_CONVERSION_FACTOR;
     const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
     
     let status = 'Normal';
