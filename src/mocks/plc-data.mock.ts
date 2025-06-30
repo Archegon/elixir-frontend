@@ -73,6 +73,7 @@ export class PLCDataMock {
   private listeners: Array<(data: PLCStatus) => void> = [];
   private updateInterval: NodeJS.Timeout | null = null;
   private updateFrequency: number = 1000; // 1 second default
+  private userSetPressure: boolean = false; // Track if user has manually set pressure
 
   constructor() {
     this.baseData = this.createBaseData();
@@ -84,6 +85,7 @@ export class PLCDataMock {
       timestamp: new Date().toISOString(),
       
       auth: {
+        show_password: false,
         proceed_status: false,
         change_password_status: false,
         admin_password: 1234,
@@ -286,15 +288,23 @@ export class PLCDataMock {
     this.baseData.system.plc_connected = true;
     this.setSessionState('equalise'); // Idle state
     
-    // Slight pressure fluctuation
-    this.baseData.pressure.internal_pressure_1 = 1.0 + (Math.sin(elapsed / 10000) * 0.02);
+    // Slight pressure fluctuation around setpoint
+    const setpoint = this.baseData.pressure.setpoint;
+    this.baseData.pressure.internal_pressure_1 = setpoint + (Math.sin(elapsed / 10000) * 0.02);
     this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.01;
-    this.baseData.pressure.setpoint = 1.0;
     
-    // Reset to health mode when idle
-    this.setOperatingMode('health');
-    this.setCompressionMode('normal');
-    this.setOxygenMode('continuous');
+    // Only reset pressure setpoint if user hasn't manually set it
+    if (!this.userSetPressure) {
+      this.baseData.pressure.setpoint = 1.0;
+    }
+    
+    // Don't reset modes if user has set them manually
+    if (!this.userSetPressure) {
+      // Reset to health mode when idle
+      this.setOperatingMode('health');
+      this.setCompressionMode('normal');
+      this.setOxygenMode('continuous');
+    }
     
     this.baseData.timers.run_time_remaining_sec = 0;
     this.baseData.timers.run_time_remaining_min = 0;
@@ -530,6 +540,27 @@ export class PLCDataMock {
       case 'o2_100': this.baseData.modes.mode_o2_100 = true; break;
       case 'o2_120': this.baseData.modes.mode_o2_120 = true; break;
     }
+    
+    // Adjust pressure setpoint if outside new mode limits
+    this.enforceModePressureLimits();
+  }
+
+  // Public method to set operating mode (for API calls)
+  setOperatingModePublic(mode: 'rest' | 'health' | 'professional' | 'custom' | 'o2_100' | 'o2_120'): void {
+    this.setOperatingMode(mode);
+    this.userSetPressure = true; // Mark that user has manually configured settings
+    this.notifyListeners();
+  }
+
+  private enforceModePressureLimits(): void {
+    const limits = this.getCurrentPressureLimits();
+    const currentPressure = this.baseData.pressure.setpoint;
+    
+    if (currentPressure < limits.min) {
+      this.baseData.pressure.setpoint = limits.min;
+    } else if (currentPressure > limits.max) {
+      this.baseData.pressure.setpoint = limits.max;
+    }
   }
 
   private setCompressionMode(mode: 'beginner' | 'normal' | 'fast'): void {
@@ -546,6 +577,13 @@ export class PLCDataMock {
     }
   }
 
+  // Public method to set compression mode (for API calls)
+  setCompressionModePublic(mode: 'beginner' | 'normal' | 'fast'): void {
+    this.setCompressionMode(mode);
+    this.userSetPressure = true; // Mark that user has manually configured settings
+    this.notifyListeners();
+  }
+
   private setOxygenMode(mode: 'continuous' | 'intermittent'): void {
     // Reset all oxygen mode flags
     this.baseData.modes.continuous_o2_flag = false;
@@ -556,6 +594,13 @@ export class PLCDataMock {
       case 'continuous': this.baseData.modes.continuous_o2_flag = true; break;
       case 'intermittent': this.baseData.modes.intermittent_o2_flag = true; break;
     }
+  }
+
+  // Public method to set oxygen mode (for API calls)
+  setOxygenModePublic(mode: 'continuous' | 'intermittent'): void {
+    this.setOxygenMode(mode);
+    this.userSetPressure = true; // Mark that user has manually configured settings
+    this.notifyListeners();
   }
 
   private setSessionState(state: 'equalise' | 'pressuring' | 'stabilising' | 'depressurise' | 'stop'): void {
@@ -586,6 +631,69 @@ export class PLCDataMock {
     this.notifyListeners();
   }
 
+  setCustomDuration(duration: number): void {
+    this.baseData.modes.custom_duration = Math.max(60, Math.min(120, duration));
+    this.userSetPressure = true; // Mark that user has manually configured settings
+    this.notifyListeners();
+  }
+
+  // PLC-controlled pressure button simulation
+  pressurePlusButton(): void {
+    const currentSetpoint = this.baseData.pressure.setpoint;
+    const increment = this.getPressureIncrement(currentSetpoint);
+    const limits = this.getCurrentPressureLimits();
+    
+    const newSetpoint = Math.min(limits.max, currentSetpoint + increment);
+    this.baseData.pressure.setpoint = newSetpoint;
+    this.userSetPressure = true; // Mark that user has set pressure manually
+    this.notifyListeners();
+  }
+
+  pressureMinusButton(): void {
+    const currentSetpoint = this.baseData.pressure.setpoint;
+    const decrement = this.getPressureDecrement(currentSetpoint);
+    const limits = this.getCurrentPressureLimits();
+    
+    const newSetpoint = Math.max(limits.min, currentSetpoint - decrement);
+    this.baseData.pressure.setpoint = newSetpoint;
+    this.userSetPressure = true; // Mark that user has set pressure manually
+    this.notifyListeners();
+  }
+
+  private getPressureIncrement(currentPressure: number): number {
+    // Special case: increment by 0.09 from 1.9 to reach 1.99
+    if (currentPressure >= 1.9 && currentPressure < 1.99) {
+      return 0.09;
+    }
+    // Normal case: increment by 0.1
+    return 0.1;
+  }
+
+  private getPressureDecrement(currentPressure: number): number {
+    // Special case: decrement by 0.09 from 1.99 to reach 1.9
+    if (currentPressure === 1.99) {
+      return 0.09;
+    }
+    // Normal case: decrement by 0.1
+    return 0.1;
+  }
+
+  private getCurrentPressureLimits(): { min: number; max: number } {
+    // Determine current operating mode
+    if (this.baseData.modes.mode_rest) {
+      return { min: 1.1, max: 1.5 };
+    } else if (this.baseData.modes.mode_health) {
+      return { min: 1.4, max: 1.99 };
+    } else if (this.baseData.modes.mode_professional) {
+      return { min: 1.5, max: 1.99 };
+    } else if (this.baseData.modes.mode_custom) {
+      return { min: 1.1, max: 1.99 };
+    } else {
+      // Default limits for O2genes modes or unknown mode
+      return { min: 1.0, max: 6.0 };
+    }
+  }
+
   startMockSession(): void {
     this.baseData.session.running_state = true;
     this.baseData.timers.session_elapsed_time = 0;
@@ -596,6 +704,74 @@ export class PLCDataMock {
     this.baseData.session.running_state = false;
     this.baseData.session.session_ended = true;
     this.setScenario('depressurizing');
+  }
+
+  resetUserConfiguration(): void {
+    this.userSetPressure = false;
+  }
+
+  // Password Authentication Methods
+  triggerPasswordRequest(): void {
+    this.baseData.auth.show_password = true;
+    this.notifyListeners();
+  }
+
+  cancelPasswordRequest(): void {
+    this.baseData.auth.show_password = false;
+    this.baseData.auth.proceed_status = false;
+    this.baseData.auth.change_password_status = false;
+    this.notifyListeners();
+  }
+
+  proceedWithPassword(password: string): void {
+    // Real-time password validation - PLC immediately sets proceed_status based on password
+    if (password === String(this.baseData.auth.user_password) || 
+        password === String(this.baseData.auth.admin_password)) {
+      // Correct password - enable proceed button
+      this.baseData.auth.proceed_status = true;
+      this.baseData.auth.change_password_status = false;
+    } else {
+      // Incorrect password - disable proceed button
+      this.baseData.auth.proceed_status = false;
+      this.baseData.auth.change_password_status = false;
+    }
+    // Don't close password screen until proceed button is actually pressed
+    this.notifyListeners();
+  }
+
+  // Method to immediately invalidate proceed status when PIN is modified
+  invalidatePasswordStatus(): void {
+    this.baseData.auth.proceed_status = false;
+    this.baseData.auth.change_password_status = false;
+    this.notifyListeners();
+  }
+
+  // Method to actually proceed (when proceed button is pressed with valid password)
+  confirmPasswordProceed(): void {
+    if (this.baseData.auth.proceed_status) {
+      this.baseData.auth.show_password = false;
+      this.baseData.auth.proceed_status = false; // Reset for next time
+      this.notifyListeners();
+    }
+  }
+
+  changePassword(oldPassword: string, newPassword: string): void {
+    // Check if old password matches
+    if (oldPassword === String(this.baseData.auth.user_password)) {
+      this.baseData.auth.user_password = parseInt(newPassword);
+      this.baseData.auth.show_password = false;
+      this.baseData.auth.change_password_status = true;
+      this.baseData.auth.proceed_status = false;
+    } else if (oldPassword === String(this.baseData.auth.admin_password)) {
+      this.baseData.auth.admin_password = parseInt(newPassword);
+      this.baseData.auth.show_password = false;
+      this.baseData.auth.change_password_status = true;
+      this.baseData.auth.proceed_status = false;
+    } else {
+      // Keep password screen open on incorrect old password
+      this.baseData.auth.change_password_status = false;
+    }
+    this.notifyListeners();
   }
 
   // Get current data snapshot

@@ -92,6 +92,10 @@ export const MockControls: React.FC<MockControlsProps> = ({
     plcDataMock.stopMockSession();
   };
 
+  const triggerPasswordRequest = () => {
+    plcDataMock.triggerPasswordRequest();
+  };
+
   const currentData = plcDataMock.getCurrentData();
 
   return (
@@ -178,6 +182,31 @@ export const MockControls: React.FC<MockControlsProps> = ({
                 Stop Session
               </button>
             </div>
+          </div>
+
+          {/* Password Testing */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Password Testing</h4>
+            <div className="flex gap-2">
+              <button
+                onClick={triggerPasswordRequest}
+                disabled={currentData.auth.show_password}
+                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 
+                         disabled:cursor-not-allowed rounded text-xs flex-1"
+              >
+                Trigger Password Request
+              </button>
+            </div>
+                         <div className="text-xs text-gray-400 space-y-1">
+               <div>Show Password: <span className={currentData.auth.show_password ? 'text-yellow-400' : 'text-gray-500'}>
+                 {currentData.auth.show_password ? 'Active' : 'Inactive'}
+               </span></div>
+               <div>Proceed Status: <span className={currentData.auth.proceed_status ? 'text-green-400' : 'text-red-400'}>
+                 {currentData.auth.proceed_status ? 'Valid' : 'Invalid'}
+               </span></div>
+               <div>User PIN: <span className="text-blue-400">{currentData.auth.user_password}</span></div>
+               <div>Admin PIN: <span className="text-red-400">{currentData.auth.admin_password}</span></div>
+             </div>
           </div>
 
           {/* Alarm Testing */}

@@ -121,6 +121,7 @@ export interface PLCStatus {
   timestamp: string;
   
   auth: {
+    show_password: boolean;
     proceed_status: boolean;
     change_password_status: boolean;
     admin_password: number;

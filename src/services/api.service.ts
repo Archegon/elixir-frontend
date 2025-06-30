@@ -442,6 +442,42 @@ class ApiService {
           }
           break;
           
+        case API_ENDPOINTS.AUTH.STATUS:
+          if (method === 'POST' && options.body) {
+            try {
+              const body = JSON.parse(options.body as string);
+              return await mockApiService.proceedWithPassword(body.password) as ApiResponse<T>;
+            } catch (e) {
+              console.error('Failed to parse password validation request body:', e);
+            }
+          } else if (method === 'DELETE') {
+            return await mockApiService.invalidatePasswordStatus() as ApiResponse<T>;
+          }
+          break;
+
+        case API_ENDPOINTS.AUTH.PROCEED:
+          if (method === 'POST') {
+            return await mockApiService.confirmPasswordProceed() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.AUTH.BACK:
+          if (method === 'POST') {
+            return await mockApiService.cancelPasswordRequest() as ApiResponse<T>;
+          }
+          break;
+          
+        case API_ENDPOINTS.AUTH.INPUT:
+          if (method === 'POST' && options.body) {
+            try {
+              const body = JSON.parse(options.body as string);
+              return await mockApiService.changePassword(body.old_password, body.new_password) as ApiResponse<T>;
+            } catch (e) {
+              console.error('Failed to parse change password request body:', e);
+            }
+          }
+          break;
+          
         default:
           console.warn(`🎭 Mock API: Unhandled endpoint ${endpoint}, returning default response`);
           return {
@@ -673,19 +709,119 @@ class ApiService {
     return this.executeCommand(API_ENDPOINTS.SESSION.END, 'session_running', false);
   }
 
-  // Pressure Control
+  // Pressure Control with Optimistic Updates
   async increasePressure(): Promise<ApiResponse> {
-    return this.makeRequest(API_ENDPOINTS.PRESSURE.ADD, { method: 'POST' });
+    const currentPressure = this.getCurrentState('pressure_setpoint') || 1.0;
+    const newPressure = this.calculateIncrementedPressure(currentPressure);
+    return this.executeCommand(API_ENDPOINTS.PRESSURE.ADD, 'pressure_setpoint', newPressure);
   }
 
   async decreasePressure(): Promise<ApiResponse> {
-    return this.makeRequest(API_ENDPOINTS.PRESSURE.SUBTRACT, { method: 'POST' });
+    const currentPressure = this.getCurrentState('pressure_setpoint') || 1.0;
+    const newPressure = this.calculateDecrementedPressure(currentPressure);
+    return this.executeCommand(API_ENDPOINTS.PRESSURE.SUBTRACT, 'pressure_setpoint', newPressure);
+  }
+
+  private calculateIncrementedPressure(currentPressure: number): number {
+    // Special case: increment by 0.09 from 1.9 to reach 1.99
+    if (currentPressure >= 1.9 && currentPressure < 1.99) {
+      return Math.min(1.99, currentPressure + 0.09);
+    }
+    // Normal case: increment by 0.1
+    return Math.min(6.0, currentPressure + 0.1);
+  }
+
+  private calculateDecrementedPressure(currentPressure: number): number {
+    // Special case: decrement by 0.09 from 1.99 to reach 1.9
+    if (currentPressure === 1.99) {
+      return 1.9;
+    }
+    // Normal case: decrement by 0.1
+    return Math.max(1.0, currentPressure - 0.1);
   }
 
   async setPressureSetpoint(setpoint: number): Promise<ApiResponse> {
     return this.makeRequest(API_ENDPOINTS.PRESSURE.SETPOINT, {
       method: 'POST',
       body: JSON.stringify({ setpoint })
+    });
+  }
+
+  // Mode Control APIs
+  async setOperatingMode(mode: 'rest' | 'health' | 'professional' | 'custom' | 'o2_100' | 'o2_120', duration?: number): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    const payload: { mode: string; duration?: number } = { mode };
+    if (duration) {
+      payload.duration = duration;
+    }
+    return this.makeRequest(API_ENDPOINTS.MODES.SET, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async setCompressionMode(mode: 'beginner' | 'normal' | 'fast'): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(`${API_ENDPOINTS.MODES.COMPRESSION}?mode=${mode}`, {
+      method: 'POST'
+    });
+  }
+
+  async setOxygenMode(mode: 'continuous' | 'intermittent'): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(`${API_ENDPOINTS.MODES.OXYGEN}?mode=${mode}`, {
+      method: 'POST'
+    });
+  }
+
+  async setCustomDuration(duration: number): Promise<ApiResponse> {
+    // Duration is set along with the operating mode, so this method
+    // will be used in combination with setOperatingMode
+    await this.waitForInitialization();
+    // For custom duration, we need to set custom mode with the duration
+    return this.setOperatingMode('custom', duration);
+  }
+
+  // Password Authentication Methods
+  async validatePassword(password: string): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(API_ENDPOINTS.AUTH.STATUS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+  }
+
+  async invalidatePassword(): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(API_ENDPOINTS.AUTH.STATUS, {
+      method: 'DELETE'
+    });
+  }
+
+  async proceedWithPassword(password: string): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(API_ENDPOINTS.AUTH.PROCEED, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+  }
+
+  async cancelPasswordRequest(): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(API_ENDPOINTS.AUTH.BACK, {
+      method: 'POST'
+    });
+  }
+
+  async changePassword(oldPassword: string, newPassword: string): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(API_ENDPOINTS.AUTH.INPUT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
     });
   }
 

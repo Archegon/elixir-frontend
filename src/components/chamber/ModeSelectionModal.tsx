@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import type { ModeConfiguration, TreatmentMode, CompressionMode } from '../../types/chamber';
+import type { PLCStatus } from '../../config/api-endpoints';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, containerClasses } from '../../utils/containerStyles';
 import { useModalScaling } from '../../hooks/useModalScaling';
 import { Clock, Activity, Gauge, Droplet, Timer, BarChart3 } from 'lucide-react';
+import { apiService } from '../../services/api.service';
 
 interface ModeSelectionModalProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
   const { currentTheme } = useTheme();
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [plcStatus, setPlcStatus] = useState<PLCStatus | null>(null);
   const { scale, modalRef } = useModalScaling({ 
     isOpen, 
     isVisible,
@@ -68,6 +71,26 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     }
   }, [isOpen, isVisible]);
 
+  // Listen for PLC status updates to get real pressure setpoint
+  useEffect(() => {
+    const handleStatusUpdate = (data: any) => {
+      setPlcStatus(data.wsStatus);
+    };
+
+    // Subscribe to PLC status updates
+    apiService.on('controls-update', handleStatusUpdate);
+
+    // Get initial status
+    const initialStatus = apiService.getSystemStatus();
+    if (initialStatus) {
+      setPlcStatus(initialStatus);
+    }
+
+    return () => {
+      apiService.off('controls-update', handleStatusUpdate);
+    };
+  }, []);
+
   const handleClose = () => {
     setIsAnimating(true);
     setTimeout(() => {
@@ -89,60 +112,246 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     handleClose();
   };
 
-  const updateTreatmentMode = (mode: TreatmentMode) => {
-    setConfig(prev => ({
-      ...prev,
-      mode_rest: false,
-      mode_health: false,
-      mode_professional: false,
-      mode_custom: false,
-      mode_o2_100: false,
-      mode_o2_120: false,
-      [mode]: true
-    }));
+  const updateTreatmentMode = async (mode: TreatmentMode) => {
+    try {
+      const newConfig = {
+        ...config,
+        mode_rest: false,
+        mode_health: false,
+        mode_professional: false,
+        mode_custom: false,
+        mode_o2_100: false,
+        mode_o2_120: false,
+        [mode]: true
+      };
+
+      // Set fixed duration for O2genes modes
+      if (mode === 'mode_o2_100') {
+        newConfig.set_duration = 100;
+      } else if (mode === 'mode_o2_120') {
+        newConfig.set_duration = 120;
+      }
+
+      // Adjust pressure if it's outside the new mode's limits
+      const limits = mode === 'mode_rest' ? { min: 1.1, max: 1.5 } :
+                     mode === 'mode_health' ? { min: 1.4, max: 1.99 } :
+                     mode === 'mode_professional' ? { min: 1.5, max: 1.99 } :
+                     mode === 'mode_custom' ? { min: 1.1, max: 1.99 } :
+                     { min: 1.4, max: 1.99 };
+
+      const isNewModeO2Genes = mode === 'mode_o2_100' || mode === 'mode_o2_120';
+      
+      if (!isNewModeO2Genes && (mode === 'mode_rest' || mode === 'mode_health' || mode === 'mode_professional' || mode === 'mode_custom')) {
+        if (newConfig.pressure_set_point < limits.min) {
+          newConfig.pressure_set_point = limits.min;
+        } else if (newConfig.pressure_set_point > limits.max) {
+          newConfig.pressure_set_point = limits.max;
+        }
+      }
+
+      // Adjust compression mode if it's not available in the new mode
+      const availableCompression = mode === 'mode_rest' || mode === 'mode_health' ? ['compression_beginner', 'compression_normal'] :
+                                   mode === 'mode_professional' ? ['compression_normal', 'compression_fast'] :
+                                   ['compression_beginner', 'compression_normal', 'compression_fast'];
+
+      const currentCompression = newConfig.compression_beginner ? 'compression_beginner' :
+                                newConfig.compression_normal ? 'compression_normal' :
+                                'compression_fast';
+
+      if (!isNewModeO2Genes && !availableCompression.includes(currentCompression)) {
+        // Reset compression modes
+        newConfig.compression_beginner = false;
+        newConfig.compression_normal = false;
+        newConfig.compression_fast = false;
+        // Set to the first available option
+        if (availableCompression[0] === 'compression_beginner') {
+          newConfig.compression_beginner = true;
+        } else if (availableCompression[0] === 'compression_normal') {
+          newConfig.compression_normal = true;
+        } else if (availableCompression[0] === 'compression_fast') {
+          newConfig.compression_fast = true;
+        }
+      }
+
+      // Update local config for immediate UI feedback
+      setConfig(newConfig);
+
+      // Map frontend mode to API mode
+      const modeMap: Record<TreatmentMode, 'rest' | 'health' | 'professional' | 'custom' | 'o2_100' | 'o2_120'> = {
+        mode_rest: 'rest',
+        mode_health: 'health', 
+        mode_professional: 'professional',
+        mode_custom: 'custom',
+        mode_o2_100: 'o2_100',
+        mode_o2_120: 'o2_120'
+      };
+
+      // Send command to PLC with duration for O2 modes
+      if (mode === 'mode_o2_100') {
+        await apiService.setOperatingMode(modeMap[mode], 100);
+      } else if (mode === 'mode_o2_120') {
+        await apiService.setOperatingMode(modeMap[mode], 120);
+      } else if (mode === 'mode_custom' && newConfig.set_duration !== config.set_duration) {
+        // If custom mode and duration changed, include duration
+        await apiService.setOperatingMode(modeMap[mode], newConfig.set_duration);
+      } else {
+        await apiService.setOperatingMode(modeMap[mode]);
+      }
+      
+    } catch (error) {
+      console.error('Failed to update treatment mode:', error);
+    }
   };
 
-  const updateCompressionMode = (mode: CompressionMode) => {
-    setConfig(prev => ({
-      ...prev,
-      compression_beginner: false,
-      compression_normal: false,
-      compression_fast: false,
-      [mode]: true
-    }));
+  const updateCompressionMode = async (mode: CompressionMode) => {
+    try {
+      // Update local config for immediate UI feedback
+      setConfig(prev => ({
+        ...prev,
+        compression_beginner: false,
+        compression_normal: false,
+        compression_fast: false,
+        [mode]: true
+      }));
+
+      // Map frontend mode to API mode
+      const modeMap: Record<CompressionMode, 'beginner' | 'normal' | 'fast'> = {
+        compression_beginner: 'beginner',
+        compression_normal: 'normal',
+        compression_fast: 'fast'
+      };
+
+      // Send command to PLC
+      await apiService.setCompressionMode(modeMap[mode]);
+      
+    } catch (error) {
+      console.error('Failed to update compression mode:', error);
+    }
   };
 
-  const updateO2Delivery = (continuous: boolean) => {
-    setConfig(prev => ({
-      ...prev,
-      continuous_o2_flag: continuous,
-      intermittent_o2_flag: !continuous
-    }));
+  const updateO2Delivery = async (continuous: boolean) => {
+    try {
+      // Update local config for immediate UI feedback
+      setConfig(prev => ({
+        ...prev,
+        continuous_o2_flag: continuous,
+        intermittent_o2_flag: !continuous
+      }));
+
+      // Send command to PLC
+      await apiService.setOxygenMode(continuous ? 'continuous' : 'intermittent');
+      
+    } catch (error) {
+      console.error('Failed to update oxygen delivery mode:', error);
+    }
   };
 
-  const updateDuration = (duration: number) => {
-    const clampedDuration = Math.min(120, Math.max(60, duration));
-    setConfig(prev => ({
-      ...prev,
-      set_duration: clampedDuration
-    }));
+  const updateDuration = async (duration: number) => {
+    try {
+      const clampedDuration = Math.min(120, Math.max(60, duration));
+      
+      // Update local config for immediate UI feedback
+      setConfig(prev => ({
+        ...prev,
+        set_duration: clampedDuration
+      }));
+
+      // Send command to PLC
+      await apiService.setCustomDuration(clampedDuration);
+      
+    } catch (error) {
+      console.error('Failed to update session duration:', error);
+    }
   };
+
+  // Get current treatment mode key
+  const getCurrentTreatmentMode = (): string => {
+    if (config.mode_rest) return 'mode_rest';
+    if (config.mode_health) return 'mode_health';
+    if (config.mode_professional) return 'mode_professional';
+    if (config.mode_custom) return 'mode_custom';
+    if (config.mode_o2_100) return 'mode_o2_100';
+    if (config.mode_o2_120) return 'mode_o2_120';
+    return 'mode_professional'; // default
+  };
+
+  // Get pressure limits based on treatment mode
+  const getPressureLimits = () => {
+    const mode = getCurrentTreatmentMode();
+    switch (mode) {
+      case 'mode_rest':
+        return { min: 1.1, max: 1.5 };
+      case 'mode_health':
+        return { min: 1.4, max: 1.99 };
+      case 'mode_professional':
+        return { min: 1.5, max: 1.99 };
+      case 'mode_custom':
+        return { min: 1.1, max: 1.99 };
+      default:
+        return { min: 1.4, max: 1.99 };
+    }
+  };
+
+  // Get available compression modes based on treatment mode
+  const getAvailableCompressionModes = () => {
+    const mode = getCurrentTreatmentMode();
+    switch (mode) {
+      case 'mode_rest':
+      case 'mode_health':
+        return ['compression_beginner', 'compression_normal'];
+      case 'mode_professional':
+        return ['compression_normal', 'compression_fast'];
+      case 'mode_custom':
+        return ['compression_beginner', 'compression_normal', 'compression_fast'];
+      default:
+        return ['compression_beginner', 'compression_normal', 'compression_fast'];
+    }
+  };
+
+  // Check if configuration sections should be shown
+  const isO2GenesMode = () => {
+    return config.mode_o2_100 || config.mode_o2_120;
+  };
+
+  const shouldShowPressureConfig = () => !isO2GenesMode();
+  const shouldShowCompressionConfig = () => !isO2GenesMode();
+  const shouldShowDurationConfig = () => !isO2GenesMode();
+  const shouldShowO2DeliveryConfig = () => isO2GenesMode();
 
   const updatePressure = (pressure: number) => {
-    const clampedPressure = Math.min(3.0, Math.max(1.4, Math.round(pressure * 10) / 10));
+    const limits = getPressureLimits();
+    const clampedPressure = Math.min(limits.max, Math.max(limits.min, Math.round(pressure * 100) / 100));
     setConfig(prev => ({
       ...prev,
       pressure_set_point: clampedPressure
     }));
   };
 
+  const incrementPressure = async () => {
+    try {
+      await apiService.increasePressure();
+      // The actual pressure value will be updated via WebSocket from the PLC
+    } catch (error) {
+      console.error('Failed to increase pressure:', error);
+    }
+  };
+
+  const decrementPressure = async () => {
+    try {
+      await apiService.decreasePressure();
+      // The actual pressure value will be updated via WebSocket from the PLC
+    } catch (error) {
+      console.error('Failed to decrease pressure:', error);
+    }
+  };
+
   const treatmentModes = [
-    { key: 'mode_rest', label: 'Rest Mode', description: 'Gentle treatment for recovery', color: currentTheme.colors.brand },
-    { key: 'mode_health', label: 'Health Mode', description: 'Standard wellness treatment', color: currentTheme.colors.brand },
-    { key: 'mode_professional', label: 'Professional Mode', description: 'Advanced therapeutic treatment', color: currentTheme.colors.brand },
-    { key: 'mode_custom', label: 'Custom Mode', description: 'User-defined parameters', color: currentTheme.colors.brand },
-    { key: 'mode_o2_100', label: '100% O2 Mode', description: 'Pure oxygen treatment', color: currentTheme.colors.brand },
-    { key: 'mode_o2_120', label: '120 Min O2 Mode', description: 'Extended oxygen therapy', color: currentTheme.colors.brand }
+    { key: 'mode_rest', label: 'Rest & Relax', description: 'Gentle treatment for relaxation (1.1-1.5 ATA)', color: currentTheme.colors.brand },
+    { key: 'mode_health', label: 'Health & Wellness', description: 'Standard wellness treatment (1.4-1.99 ATA)', color: currentTheme.colors.brand },
+    { key: 'mode_professional', label: 'Professional Recovery', description: 'Advanced recovery treatment (1.5-1.99 ATA)', color: currentTheme.colors.brand },
+    { key: 'mode_custom', label: 'Customise', description: 'User-defined parameters (1.1-1.99 ATA)', color: currentTheme.colors.brand },
+    { key: 'mode_o2_100', label: 'O2genes 100 Mins', description: 'Oxygen therapy - 100 minutes', color: currentTheme.colors.brand },
+    { key: 'mode_o2_120', label: 'O2genes 120 Mins', description: 'Oxygen therapy - 120 minutes', color: currentTheme.colors.brand }
   ];
 
   const compressionModes = [
@@ -255,47 +464,51 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                 </div>
 
                 {/* Compression Mode */}
-                <div style={containerStyles.section(currentTheme)}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
-                    >
-                      <Gauge size={18} style={{ color: currentTheme.colors.brand }} />
-                    </div>
-                    <h3 
-                      className="text-lg font-semibold"
-                      style={{ color: currentTheme.colors.textPrimary }}
-                    >
-                      Compression Rate
-                    </h3>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {compressionModes.map(({ key, label, description, color }) => (
-                      <button
-                        key={key}
-                        onClick={() => updateCompressionMode(key as CompressionMode)}
-                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                        style={{
-                          backgroundColor: config[key as keyof ModeConfiguration] 
-                            ? `${color}20` 
-                            : `${currentTheme.colors.border}20`,
-                          border: `1px solid ${config[key as keyof ModeConfiguration] ? color : currentTheme.colors.border}40`,
-                          color: currentTheme.colors.textPrimary
-                        }}
+                {shouldShowCompressionConfig() && (
+                  <div style={containerStyles.section(currentTheme)}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div 
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
                       >
-                        <div className="font-medium text-sm">{label}</div>
-                        <div 
-                          className="text-xs mt-1"
-                          style={{ color: currentTheme.colors.textSecondary }}
+                        <Gauge size={18} style={{ color: currentTheme.colors.brand }} />
+                      </div>
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: currentTheme.colors.textPrimary }}
+                      >
+                        Compression Rate
+                      </h3>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {compressionModes
+                        .filter(({ key }) => getAvailableCompressionModes().includes(key))
+                        .map(({ key, label, description, color }) => (
+                        <button
+                          key={key}
+                          onClick={() => updateCompressionMode(key as CompressionMode)}
+                          className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                          style={{
+                            backgroundColor: config[key as keyof ModeConfiguration] 
+                              ? `${color}20` 
+                              : `${currentTheme.colors.border}20`,
+                            border: `1px solid ${config[key as keyof ModeConfiguration] ? color : currentTheme.colors.border}40`,
+                            color: currentTheme.colors.textPrimary
+                          }}
                         >
-                          {description}
-                        </div>
-                      </button>
-                    ))}
+                          <div className="font-medium text-sm">{label}</div>
+                          <div 
+                            className="text-xs mt-1"
+                            style={{ color: currentTheme.colors.textSecondary }}
+                          >
+                            {description}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
               </div>
 
@@ -303,232 +516,277 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
               <div className="space-y-6">
                 
                 {/* Pressure Set Point */}
-                <div style={containerStyles.section(currentTheme)}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
-                    >
-                      <BarChart3 size={18} style={{ color: currentTheme.colors.brand }} />
-                    </div>
-                    <h3 
-                      className="text-lg font-semibold"
-                      style={{ color: currentTheme.colors.textPrimary }}
-                    >
-                      Pressure Set Point
-                    </h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => updatePressure(config.pressure_set_point - 0.1)}
-                        className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-                        style={{ 
-                          backgroundColor: `${currentTheme.colors.brand}20`,
-                          border: `1px solid ${currentTheme.colors.brand}40`,
-                          color: currentTheme.colors.brand
-                        }}
+                {shouldShowPressureConfig() && (
+                  <div style={containerStyles.section(currentTheme)}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div 
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
                       >
-                        -
-                      </button>
-                      
-                      <div className="flex-1 text-center">
-                        <div 
-                          className="text-3xl font-bold font-mono"
-                          style={{ color: currentTheme.colors.textPrimary }}
-                        >
-                          {config.pressure_set_point.toFixed(1)}
-                        </div>
-                        <div 
-                          className="text-sm"
-                          style={{ color: currentTheme.colors.textSecondary }}
-                        >
-                          ATA
-                        </div>
+                        <BarChart3 size={18} style={{ color: currentTheme.colors.brand }} />
                       </div>
-                      
-                      <button
-                        onClick={() => updatePressure(config.pressure_set_point + 0.1)}
-                        className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-                        style={{ 
-                          backgroundColor: `${currentTheme.colors.brand}20`,
-                          border: `1px solid ${currentTheme.colors.brand}40`,
-                          color: currentTheme.colors.brand
-                        }}
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: currentTheme.colors.textPrimary }}
                       >
-                        +
-                      </button>
+                        Pressure Set Point
+                      </h3>
                     </div>
                     
-                    <div>
-                      <input
-                        type="range"
-                        min="1.4"
-                        max="3.0"
-                        step="0.1"
-                        value={config.pressure_set_point}
-                        onChange={(e) => updatePressure(parseFloat(e.target.value))}
-                        className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                        style={{ 
-                          backgroundColor: currentTheme.colors.border,
-                          outline: 'none'
-                        }}
-                      />
-                      <div 
-                        className="flex justify-between text-xs mt-2"
-                        style={{ color: currentTheme.colors.textSecondary }}
-                      >
-                        <span>1.4 ATA</span>
-                        <span>3.0 ATA</span>
-                      </div>
+                                          <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={decrementPressure}
+                            className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+                            style={{ 
+                              backgroundColor: `${currentTheme.colors.brand}20`,
+                              border: `1px solid ${currentTheme.colors.brand}40`,
+                              color: currentTheme.colors.brand
+                            }}
+                          >
+                            -
+                          </button>
+                          
+                          <div className="flex-1 text-center">
+                            <div 
+                              className="text-3xl font-bold font-mono"
+                              style={{ color: currentTheme.colors.textPrimary }}
+                            >
+                              {plcStatus?.pressure?.setpoint ? plcStatus.pressure.setpoint.toFixed(2) : config.pressure_set_point.toFixed(1)}
+                            </div>
+                            <div 
+                              className="text-sm"
+                              style={{ color: currentTheme.colors.textSecondary }}
+                            >
+                              ATA
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={incrementPressure}
+                            className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+                            style={{ 
+                              backgroundColor: `${currentTheme.colors.brand}20`,
+                              border: `1px solid ${currentTheme.colors.brand}40`,
+                              color: currentTheme.colors.brand
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      
+                                              <div>
+                          <input
+                            type="range"
+                            min={getPressureLimits().min}
+                            max={getPressureLimits().max}
+                            step="0.01"
+                            value={plcStatus?.pressure?.setpoint || config.pressure_set_point}
+                            disabled={true}
+                            className="w-full h-2 rounded-lg appearance-none cursor-not-allowed opacity-60"
+                            style={{ 
+                              backgroundColor: currentTheme.colors.border,
+                              outline: 'none'
+                            }}
+                          />
+                          <div 
+                            className="flex justify-between text-xs mt-2"
+                            style={{ color: currentTheme.colors.textSecondary }}
+                          >
+                            <span>{getPressureLimits().min} ATA</span>
+                            <span>{getPressureLimits().max} ATA</span>
+                          </div>
+                          <div 
+                            className="text-xs text-center mt-1"
+                            style={{ color: currentTheme.colors.textSecondary }}
+                          >
+                            Use + / - buttons to control pressure
+                          </div>
+                        </div>
                     </div>
                   </div>
-                </div>
+                )}
                 
                 {/* O2 Delivery Method */}
-                <div style={containerStyles.section(currentTheme)}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
-                    >
-                      <Droplet size={18} style={{ color: currentTheme.colors.brand }} />
-                    </div>
-                    <h3 
-                      className="text-lg font-semibold"
-                      style={{ color: currentTheme.colors.textPrimary }}
-                    >
-                      Oxygen Delivery
-                    </h3>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => updateO2Delivery(true)}
-                      className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                      style={{
-                        backgroundColor: config.continuous_o2_flag 
-                          ? `${currentTheme.colors.brand}20` 
-                          : `${currentTheme.colors.border}20`,
-                        border: `1px solid ${config.continuous_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
-                        color: currentTheme.colors.textPrimary
-                      }}
-                    >
-                      <div className="font-medium text-sm">Continuous O2</div>
+                {shouldShowO2DeliveryConfig() && (
+                  <div style={containerStyles.section(currentTheme)}>
+                    <div className="flex items-center gap-3 mb-4">
                       <div 
-                        className="text-xs mt-1"
-                        style={{ color: currentTheme.colors.textSecondary }}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
                       >
-                        Constant oxygen flow throughout session
+                        <Droplet size={18} style={{ color: currentTheme.colors.brand }} />
                       </div>
-                    </button>
-
-                    <button
-                      onClick={() => updateO2Delivery(false)}
-                      className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                      style={{
-                        backgroundColor: config.intermittent_o2_flag 
-                          ? `${currentTheme.colors.brand}20` 
-                          : `${currentTheme.colors.border}20`,
-                        border: `1px solid ${config.intermittent_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
-                        color: currentTheme.colors.textPrimary
-                      }}
-                    >
-                      <div className="font-medium text-sm">Intermittent O2</div>
-                      <div 
-                        className="text-xs mt-1"
-                        style={{ color: currentTheme.colors.textSecondary }}
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: currentTheme.colors.textPrimary }}
                       >
-                        Timed oxygen intervals during session
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Session Duration */}
-                <div style={containerStyles.section(currentTheme)}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
-                    >
-                      <Timer size={18} style={{ color: currentTheme.colors.brand }} />
-                    </div>
-                    <h3 
-                      className="text-lg font-semibold"
-                      style={{ color: currentTheme.colors.textPrimary }}
-                    >
-                      Session Duration
-                    </h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => updateDuration(config.set_duration - 5)}
-                        className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-                        style={{ 
-                          backgroundColor: `${currentTheme.colors.brand}20`,
-                          border: `1px solid ${currentTheme.colors.brand}40`,
-                          color: currentTheme.colors.brand
-                        }}
-                      >
-                        -5
-                      </button>
-                      
-                      <div className="flex-1 text-center">
-                        <div 
-                          className="text-3xl font-bold font-mono"
-                          style={{ color: currentTheme.colors.textPrimary }}
-                        >
-                          {config.set_duration}
-                        </div>
-                        <div 
-                          className="text-sm"
-                          style={{ color: currentTheme.colors.textSecondary }}
-                        >
-                          minutes
-                        </div>
-                      </div>
-                      
-                      <button
-                        onClick={() => updateDuration(config.set_duration + 5)}
-                        className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-                        style={{ 
-                          backgroundColor: `${currentTheme.colors.brand}20`,
-                          border: `1px solid ${currentTheme.colors.brand}40`,
-                          color: currentTheme.colors.brand
-                        }}
-                      >
-                        +5
-                      </button>
+                        Oxygen Delivery
+                      </h3>
                     </div>
                     
-                    <div>
-                      <input
-                        type="range"
-                        min="60"
-                        max="120"
-                        step="5"
-                        value={config.set_duration}
-                        onChange={(e) => updateDuration(parseInt(e.target.value))}
-                        className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                        style={{ 
-                          backgroundColor: currentTheme.colors.border,
-                          outline: 'none'
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => updateO2Delivery(true)}
+                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        style={{
+                          backgroundColor: config.continuous_o2_flag 
+                            ? `${currentTheme.colors.brand}20` 
+                            : `${currentTheme.colors.border}20`,
+                          border: `1px solid ${config.continuous_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                          color: currentTheme.colors.textPrimary
                         }}
-                      />
-                      <div 
-                        className="flex justify-between text-xs mt-2"
-                        style={{ color: currentTheme.colors.textSecondary }}
                       >
-                        <span>60 min</span>
-                        <span>120 min</span>
+                        <div className="font-medium text-sm">Continuous O2</div>
+                        <div 
+                          className="text-xs mt-1"
+                          style={{ color: currentTheme.colors.textSecondary }}
+                        >
+                          Constant oxygen flow throughout session
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => updateO2Delivery(false)}
+                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        style={{
+                          backgroundColor: config.intermittent_o2_flag 
+                            ? `${currentTheme.colors.brand}20` 
+                            : `${currentTheme.colors.border}20`,
+                          border: `1px solid ${config.intermittent_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                          color: currentTheme.colors.textPrimary
+                        }}
+                      >
+                        <div className="font-medium text-sm">Intermittent O2</div>
+                        <div 
+                          className="text-xs mt-1"
+                          style={{ color: currentTheme.colors.textSecondary }}
+                        >
+                          Timed oxygen intervals during session
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Session Duration */}
+                {shouldShowDurationConfig() ? (
+                  <div style={containerStyles.section(currentTheme)}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div 
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
+                      >
+                        <Timer size={18} style={{ color: currentTheme.colors.brand }} />
+                      </div>
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: currentTheme.colors.textPrimary }}
+                      >
+                        Session Duration
+                      </h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => updateDuration(config.set_duration - 5)}
+                          className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+                          style={{ 
+                            backgroundColor: `${currentTheme.colors.brand}20`,
+                            border: `1px solid ${currentTheme.colors.brand}40`,
+                            color: currentTheme.colors.brand
+                          }}
+                        >
+                          -5
+                        </button>
+                        
+                        <div className="flex-1 text-center">
+                          <div 
+                            className="text-3xl font-bold font-mono"
+                            style={{ color: currentTheme.colors.textPrimary }}
+                          >
+                            {config.set_duration}
+                          </div>
+                          <div 
+                            className="text-sm"
+                            style={{ color: currentTheme.colors.textSecondary }}
+                          >
+                            minutes
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => updateDuration(config.set_duration + 5)}
+                          className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+                          style={{ 
+                            backgroundColor: `${currentTheme.colors.brand}20`,
+                            border: `1px solid ${currentTheme.colors.brand}40`,
+                            color: currentTheme.colors.brand
+                          }}
+                        >
+                          +5
+                        </button>
+                      </div>
+                      
+                      <div>
+                        <input
+                          type="range"
+                          min="60"
+                          max="120"
+                          step="5"
+                          value={config.set_duration}
+                          onChange={(e) => updateDuration(parseInt(e.target.value))}
+                          className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                          style={{ 
+                            backgroundColor: currentTheme.colors.border,
+                            outline: 'none'
+                          }}
+                        />
+                        <div 
+                          className="flex justify-between text-xs mt-2"
+                          style={{ color: currentTheme.colors.textSecondary }}
+                        >
+                          <span>60 min</span>
+                          <span>120 min</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  // Show fixed duration for O2genes modes
+                  <div style={containerStyles.section(currentTheme)}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div 
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${currentTheme.colors.brand}20` }}
+                      >
+                        <Timer size={18} style={{ color: currentTheme.colors.brand }} />
+                      </div>
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: currentTheme.colors.textPrimary }}
+                      >
+                        Session Duration
+                      </h3>
+                    </div>
+                    
+                    <div className="text-center p-4 rounded-xl" style={{ backgroundColor: `${currentTheme.colors.border}10` }}>
+                      <div 
+                        className="text-3xl font-bold font-mono"
+                        style={{ color: currentTheme.colors.textPrimary }}
+                      >
+                        {config.set_duration}
+                      </div>
+                      <div 
+                        className="text-sm"
+                        style={{ color: currentTheme.colors.textSecondary }}
+                      >
+                        minutes (fixed)
+                      </div>
+                    </div>
+                  </div>
+                )}
 
               </div>
 

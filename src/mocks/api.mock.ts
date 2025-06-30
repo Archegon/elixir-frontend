@@ -197,7 +197,7 @@ class MockApiService {
     );
   }
 
-  // Pressure control
+  // Pressure control - PLC button simulation
   async increasePressure(): Promise<ApiResponse> {
     await this.delay();
     
@@ -206,15 +206,21 @@ class MockApiService {
     }
 
     const currentData = plcDataMock.getCurrentData();
-    const newSetpoint = Math.min(6.0, currentData.pressure.setpoint + 0.1);
-    plcDataMock.setTargetPressure(newSetpoint);
+    const previousSetpoint = currentData.pressure.setpoint;
+    
+    // Simulate PLC pressure_add_button command
+    plcDataMock.pressurePlusButton();
+    
+    const newData = plcDataMock.getCurrentData();
+    const newSetpoint = newData.pressure.setpoint;
     
     return this.createResponse(
       { 
         pressure_setpoint: newSetpoint,
-        previous_setpoint: currentData.pressure.setpoint,
+        previous_setpoint: previousSetpoint,
+        increment: newSetpoint - previousSetpoint,
       },
-      'Pressure increased'
+      'Pressure add button pressed'
     );
   }
 
@@ -226,15 +232,21 @@ class MockApiService {
     }
 
     const currentData = plcDataMock.getCurrentData();
-    const newSetpoint = Math.max(1.0, currentData.pressure.setpoint - 0.1);
-    plcDataMock.setTargetPressure(newSetpoint);
+    const previousSetpoint = currentData.pressure.setpoint;
+    
+    // Simulate PLC pressure_minus_button command
+    plcDataMock.pressureMinusButton();
+    
+    const newData = plcDataMock.getCurrentData();
+    const newSetpoint = newData.pressure.setpoint;
     
     return this.createResponse(
       { 
         pressure_setpoint: newSetpoint,
-        previous_setpoint: currentData.pressure.setpoint,
+        previous_setpoint: previousSetpoint,
+        decrement: previousSetpoint - newSetpoint,
       },
-      'Pressure decreased'
+      'Pressure minus button pressed'
     );
   }
 
@@ -284,6 +296,122 @@ class MockApiService {
         session_token: `mock_token_${Date.now()}`,
       },
       'Authentication successful'
+    );
+  }
+
+  // Password Authentication Methods
+  async proceedWithPassword(password: string): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to proceed with password');
+    }
+
+    // This validates the password in real-time and sets proceed_status
+    plcDataMock.proceedWithPassword(password);
+    
+    const currentData = plcDataMock.getCurrentData();
+    // Always return success - the proceed_status in PLC data indicates if password is valid
+    return this.createResponse(
+      { 
+        proceed_status: currentData.auth.proceed_status,
+        message: currentData.auth.proceed_status ? 'Password validated' : 'Password validation complete',
+      },
+      'Password validation complete'
+    );
+  }
+
+  // Method for when proceed button is actually pressed
+  async confirmPasswordProceed(): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to confirm password proceed');
+    }
+
+    plcDataMock.confirmPasswordProceed();
+    
+    return this.createResponse(
+      { 
+        proceed_confirmed: true,
+        show_password: false,
+      },
+      'Password proceed confirmed'
+    );
+  }
+
+  async cancelPasswordRequest(): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to cancel password request');
+    }
+
+    plcDataMock.cancelPasswordRequest();
+    
+    return this.createResponse(
+      { 
+        cancelled: true,
+        show_password: false,
+      },
+      'Password request cancelled'
+    );
+  }
+
+  async changePassword(oldPassword: string, newPassword: string): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to change password');
+    }
+
+    plcDataMock.changePassword(oldPassword, newPassword);
+    
+    const currentData = plcDataMock.getCurrentData();
+    if (currentData.auth.change_password_status) {
+      return this.createResponse(
+        { 
+          change_password_status: true,
+          message: 'Password changed successfully',
+        },
+        'Password changed successfully'
+      );
+    } else {
+      return this.createErrorResponse('Invalid current password', 401);
+    }
+  }
+
+  // Method to invalidate password status
+  async invalidatePasswordStatus(): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to invalidate password status');
+    }
+
+    plcDataMock.invalidatePasswordStatus();
+    
+    return this.createResponse(
+      { 
+        proceed_status: false,
+        message: 'Password status invalidated',
+      },
+      'Password status cleared'
+    );
+  }
+
+  // Mock method to trigger password request (for testing)
+  async triggerPasswordRequest(): Promise<ApiResponse> {
+    await this.delay();
+    
+    plcDataMock.triggerPasswordRequest();
+    
+    return this.createResponse(
+      { 
+        show_password: true,
+        message: 'Password request triggered',
+      },
+      'Password request initiated'
     );
   }
 
@@ -387,6 +515,76 @@ class MockApiService {
         previous_mode: currentData.manual.manual_mode,
       },
       `Manual mode ${newManualMode ? 'enabled' : 'disabled'}`
+    );
+  }
+
+  // Mode Control APIs
+  async setOperatingMode(mode: 'rest' | 'health' | 'professional' | 'custom' | 'o2_100' | 'o2_120', duration?: number): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to set operating mode');
+    }
+
+    plcDataMock.setOperatingModePublic(mode);
+    
+    // Set duration if provided
+    if (duration) {
+      plcDataMock.setCustomDuration(duration);
+    }
+    
+    return this.createResponse(
+      { operating_mode: mode, duration: duration || null },
+      `Operating mode set to ${mode}${duration ? ` with ${duration} minutes duration` : ''}`
+    );
+  }
+
+  async setCompressionMode(mode: 'beginner' | 'normal' | 'fast'): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to set compression mode');
+    }
+
+    plcDataMock.setCompressionModePublic(mode);
+    
+    return this.createResponse(
+      { compression_mode: mode },
+      `Compression mode set to ${mode}`
+    );
+  }
+
+  async setOxygenMode(mode: 'continuous' | 'intermittent'): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to set oxygen mode');
+    }
+
+    plcDataMock.setOxygenModePublic(mode);
+    
+    return this.createResponse(
+      { oxygen_mode: mode },
+      `Oxygen mode set to ${mode}`
+    );
+  }
+
+  async setCustomDuration(duration: number): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to set custom duration');
+    }
+
+    if (duration < 60 || duration > 120) {
+      return this.createErrorResponse('Invalid duration. Must be between 60 and 120 minutes', 400);
+    }
+
+    plcDataMock.setCustomDuration(duration);
+    
+    return this.createResponse(
+      { custom_duration: duration },
+      `Custom duration set to ${duration} minutes`
     );
   }
 

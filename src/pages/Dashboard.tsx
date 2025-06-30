@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import type { EnvironmentalControls, ModeConfiguration } from '../types/chamber';
+import type { PLCStatus } from '../config/api-endpoints';
 import { FanMode } from '../types/chamber';
 import { useTheme } from '../contexts/ThemeContext';
 import EnvironmentalControlsModal from '../components/chamber/EnvironmentalControlsModal';
 import ModeSelectionModal from '../components/chamber/ModeSelectionModal';
 import ThemeSelectorModal from '../components/ui/ThemeSelectorModal';
+import PasswordInputModal from '../components/ui/PasswordInputModal';
 import PressureChart from '../components/charts/PressureChart';
 import SideNavbar from '../components/dashboard/SideNavbar';
 import EnvironmentalReadingsCard from '../components/dashboard/EnvironmentalReadingsCard';
@@ -12,6 +14,7 @@ import SessionInfoCard from '../components/dashboard/SessionInfoCard';
 import AlertsCard from '../components/dashboard/AlertsCard';
 import ElixirLogo from '../components/ui/ElixirLogo';
 import { MockControls } from '../components/MockControls';
+import apiService from '../services/api.service';
 
 const Dashboard: React.FC = () => {
   const { currentTheme } = useTheme();
@@ -20,6 +23,8 @@ const Dashboard: React.FC = () => {
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isMockControlsVisible, setIsMockControlsVisible] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [plcStatus, setPLCStatus] = useState<PLCStatus | null>(null);
   const [environmentalControls, setEnvironmentalControls] = useState<EnvironmentalControls>({
     airConditioner: {
       enabled: true,
@@ -80,6 +85,55 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener('resize', calculateScale);
   }, []);
 
+  // Monitor PLC status for show_password bit
+  useEffect(() => {
+    const handleStatusUpdate = (status: PLCStatus) => {
+      setPLCStatus(status);
+      setIsPasswordModalOpen(status.auth.show_password);
+    };
+
+    // Subscribe to PLC status updates
+    apiService.on('status-update', handleStatusUpdate);
+    
+    // Get initial status
+    const initialStatus = apiService.getSystemStatus();
+    if (initialStatus) {
+      handleStatusUpdate(initialStatus);
+    }
+
+    return () => {
+      apiService.off('status-update', handleStatusUpdate);
+    };
+  }, []);
+
+  // Password modal handlers
+  const handlePasswordCancel = async () => {
+    try {
+      await apiService.cancelPasswordRequest();
+      setIsPasswordModalOpen(false);
+    } catch (error) {
+      console.error('Failed to cancel password request:', error);
+    }
+  };
+
+  const handlePasswordProceed = async (password: string) => {
+    try {
+      await apiService.proceedWithPassword(password);
+      // Modal will close automatically when show_password becomes false
+    } catch (error) {
+      console.error('Failed to proceed with password:', error);
+    }
+  };
+
+  const handlePasswordChange = async (oldPassword: string, newPassword: string) => {
+    try {
+      await apiService.changePassword(oldPassword, newPassword);
+      // Modal will close automatically when show_password becomes false
+    } catch (error) {
+      console.error('Failed to change password:', error);
+    }
+  };
+
   return (
     <div 
       className="h-screen w-screen overflow-hidden flex"
@@ -94,9 +148,9 @@ const Dashboard: React.FC = () => {
     >
       {/* Side Navbar */}
       <SideNavbar 
-        onThemeModalOpen={() => setIsThemeModalOpen(true)} 
-        onEnvControls={() => setIsEnvModalOpen(true)}
-        onMockControls={() => setIsMockControlsVisible(!isMockControlsVisible)}
+        onThemeModalOpen={() => !isPasswordModalOpen && setIsThemeModalOpen(true)} 
+        onEnvControls={() => !isPasswordModalOpen && setIsEnvModalOpen(true)}
+        onMockControls={() => !isPasswordModalOpen && setIsMockControlsVisible(!isMockControlsVisible)}
       />
 
       {/* Main Content */}
@@ -123,8 +177,12 @@ const Dashboard: React.FC = () => {
           {/* Metrics Grid */}
           <div className="col-span-12">
             <div className="grid grid-cols-4 gap-4 mb-2">
-              <EnvironmentalReadingsCard onClimateControl={() => setIsEnvModalOpen(true)} />
-              <SessionInfoCard onModeSelect={() => setIsModeModalOpen(true)} />
+              <EnvironmentalReadingsCard 
+                onClimateControl={() => !isPasswordModalOpen && setIsEnvModalOpen(true)} 
+              />
+              <SessionInfoCard 
+                onModeSelect={() => !isPasswordModalOpen && setIsModeModalOpen(true)} 
+              />
             </div>
           </div>
 
@@ -145,29 +203,48 @@ const Dashboard: React.FC = () => {
 
       {/* Modals */}
       <EnvironmentalControlsModal
-        isOpen={isEnvModalOpen}
+        isOpen={isEnvModalOpen && !isPasswordModalOpen}
         onClose={() => setIsEnvModalOpen(false)}
         controls={environmentalControls}
         onUpdateControls={setEnvironmentalControls}
       />
 
       <ModeSelectionModal
-        isOpen={isModeModalOpen}
+        isOpen={isModeModalOpen && !isPasswordModalOpen}
         onClose={() => setIsModeModalOpen(false)}
         initialConfig={modeConfiguration}
         onUpdateConfig={setModeConfiguration}
       />
 
       <ThemeSelectorModal
-        isOpen={isThemeModalOpen}
+        isOpen={isThemeModalOpen && !isPasswordModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
+      />
+
+      {/* Password Input Modal - Highest priority */}
+      <PasswordInputModal
+        isOpen={isPasswordModalOpen}
+        onCancel={handlePasswordCancel}
+        onProceed={handlePasswordProceed}
+        onChangePassword={handlePasswordChange}
       />
 
       {/* Mock Controls - Only visible in mock mode */}
       <MockControls 
-        visible={isMockControlsVisible}
+        visible={isMockControlsVisible && !isPasswordModalOpen}
         onToggle={() => setIsMockControlsVisible(!isMockControlsVisible)}
       />
+
+      {/* Overlay when password modal is active */}
+      {isPasswordModalOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-30 z-40 pointer-events-none"
+          style={{
+            transform: `scale(${1/scaleFactor})`,
+            transformOrigin: 'top left',
+          }}
+        />
+      )}
     </div>
   );
 };
