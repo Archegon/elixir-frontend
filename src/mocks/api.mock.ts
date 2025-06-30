@@ -791,6 +791,87 @@ class MockAPIService extends SimpleEventEmitter {
     );
   }
 
+  // Climate Control APIs
+  async setACFanMode(mode: 'auto' | 'low' | 'mid' | 'high'): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to set AC fan mode');
+    }
+
+    // Reset all fan mode flags first
+    this.currentStatus.climate.ac_mode = 0;
+    
+    // Set the appropriate fan mode based on PLC addresses
+    switch (mode) {
+      case 'auto':
+        this.currentStatus.climate.ac_mode = 0; // M11.0
+        plcDataMock.setACFanMode('auto');
+        break;
+      case 'low':
+        this.currentStatus.climate.ac_mode = 1; // M11.1
+        plcDataMock.setACFanMode('low');
+        break;
+      case 'mid':
+        this.currentStatus.climate.ac_mode = 2; // M11.2
+        plcDataMock.setACFanMode('mid');
+        break;
+      case 'high':
+        this.currentStatus.climate.ac_mode = 3; // M11.3
+        plcDataMock.setACFanMode('high');
+        break;
+    }
+    
+    this.currentStatus = plcDataMock.getCurrentData();
+    
+    return this.createResponse(
+      { ac_mode: this.currentStatus.climate.ac_mode, mode },
+      `AC fan mode set to ${mode}`
+    );
+  }
+
+  async setTemperatureSetpoint(temperature: number): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to set temperature setpoint');
+    }
+
+    if (temperature < 16 || temperature > 30) {
+      return this.createErrorResponse('Invalid temperature setpoint. Must be between 16°C and 30°C', 400);
+    }
+
+    const previousTemp = this.currentStatus.climate.temperature_setpoint;
+    plcDataMock.setTemperatureSetpoint(temperature);
+    
+    this.currentStatus = plcDataMock.getCurrentData();
+    
+    return this.createResponse(
+      { 
+        temperature_setpoint: temperature,
+        previous_setpoint: previousTemp,
+      },
+      `Temperature setpoint set to ${temperature}°C`
+    );
+  }
+
+  async toggleHeatingCooling(): Promise<ApiResponse> {
+    await this.delay();
+    
+    if (this.shouldError()) {
+      return this.createErrorResponse('Failed to toggle heating/cooling mode');
+    }
+
+    plcDataMock.toggleHeatingCooling();
+    
+    this.currentStatus = plcDataMock.getCurrentData();
+    
+    return this.createResponse(
+      { heating_cooling_mode: this.currentStatus.climate.heating_cooling_mode },
+      `Heating/cooling mode toggled to ${this.currentStatus.climate.heating_cooling_mode ? 'heating' : 'cooling'}`
+    );
+  }
+
   // Error injection for testing
   async injectError(duration: number = 5000): Promise<ApiResponse> {
     await this.delay();

@@ -637,6 +637,36 @@ export class PLCDataMock {
     this.notifyListeners();
   }
 
+  // Climate Control Methods
+  setACFanMode(mode: 'auto' | 'low' | 'mid' | 'high'): void {
+    // Set AC mode based on PLC mapping (0=auto, 1=low, 2=mid, 3=high)
+    switch (mode) {
+      case 'auto':
+        this.baseData.climate.ac_mode = 0;
+        break;
+      case 'low':
+        this.baseData.climate.ac_mode = 1;
+        break;
+      case 'mid':
+        this.baseData.climate.ac_mode = 2;
+        break;
+      case 'high':
+        this.baseData.climate.ac_mode = 3;
+        break;
+    }
+    this.notifyListeners();
+  }
+
+  setTemperatureSetpoint(temperature: number): void {
+    this.baseData.climate.temperature_setpoint = Math.max(16, Math.min(30, temperature));
+    this.notifyListeners();
+  }
+
+  toggleHeatingCooling(): void {
+    this.baseData.climate.heating_cooling_mode = !this.baseData.climate.heating_cooling_mode;
+    this.notifyListeners();
+  }
+
   // PLC-controlled pressure button simulation
   pressurePlusButton(): void {
     const currentSetpoint = this.baseData.pressure.setpoint;

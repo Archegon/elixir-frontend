@@ -792,6 +792,30 @@ class ApiService {
     return this.setOperatingMode('custom', duration);
   }
 
+  // Climate Control Methods
+  async setACFanMode(mode: 'auto' | 'low' | 'mid' | 'high'): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(`${API_ENDPOINTS.CLIMATE.AC_MODE}?mode=${mode}`, {
+      method: 'POST'
+    });
+  }
+
+  async setTemperatureSetpoint(temperature: number): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(API_ENDPOINTS.CLIMATE.TEMPERATURE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setpoint: temperature })
+    });
+  }
+
+  async toggleHeatingCooling(): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    return this.makeRequest(API_ENDPOINTS.CLIMATE.HEATING_COOLING, {
+      method: 'POST'
+    });
+  }
+
   // Password Authentication Methods
   async validatePassword(password: string): Promise<ApiResponse> {
     await this.waitForInitialization();
