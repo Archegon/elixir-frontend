@@ -89,18 +89,18 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   };
 
   const getTemperatureData = () => {
-    if (!plcData || !plcData.sensors) return { current: 0, range: '20-24°C', percentage: 0, status: 'No Data' };
+    if (!plcData || !plcData.sensors) return { current: 0, range: '20-30°C', percentage: 0, status: 'No Data' };
     
     const current = plcData.sensors.current_temperature || 0;
     const minTemp = 20;
-    const maxTemp = 24;
+    const maxTemp = 30;
     const percentage = ((current - minTemp) / (maxTemp - minTemp)) * 100;
     
     let status = 'Stable';
     if (current < minTemp) status = 'Cold';
     else if (current > maxTemp) status = 'Warm';
     
-    return { current, range: '20-24°C', percentage: Math.max(0, Math.min(100, percentage)), status };
+    return { current, range: '20-30°C', percentage: Math.max(0, Math.min(100, percentage)), status };
   };
 
   const getHumidityData = () => {

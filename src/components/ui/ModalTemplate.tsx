@@ -62,8 +62,11 @@ const ModalTemplate: React.FC<ModalTemplateProps> = ({
   return (
     <div 
       className={`fixed inset-0 flex items-center justify-center z-50 transition-all duration-300 ${
-        isAnimating ? 'bg-black/0' : 'bg-black/40 backdrop-blur-sm'
+        isAnimating ? 'backdrop-blur-none' : 'backdrop-blur-md'
       }`}
+      style={{
+        backgroundColor: isAnimating ? 'rgba(0, 0, 0, 0)' : 'rgba(0, 0, 0, 0.2)'
+      }}
       onClick={handleClose}
     >
       <div 
@@ -73,6 +76,11 @@ const ModalTemplate: React.FC<ModalTemplateProps> = ({
         }`}
         style={{
           ...containerStyles.modal(currentTheme),
+          // Override max-height when height is explicitly set
+          ...(height !== 'max-h-[80vh]' && height !== 'h-auto' ? {
+            maxHeight: 'none',
+            overflow: 'visible'
+          } : {}),
           transform: `scale(${scale}) ${isAnimating ? 'scale(0.95) translateY(1rem)' : ''}`,
           transformOrigin: 'center center'
         }}
@@ -112,7 +120,14 @@ const ModalTemplate: React.FC<ModalTemplateProps> = ({
         </div>
 
         {/* Modal Content - Scrollable */}
-        <div style={containerStyles.modalContent(currentTheme)}>
+        <div style={{
+          ...containerStyles.modalContent(currentTheme),
+          // Override overflow when height is explicitly set
+          ...(height !== 'max-h-[80vh]' && height !== 'h-auto' ? {
+            overflowY: 'visible',
+            maxHeight: 'none'
+          } : {})
+        }}>
           {children}
         </div>
 

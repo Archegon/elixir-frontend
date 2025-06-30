@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, containerClasses, getProgressBarStyle } from '../../utils/containerStyles';
-import { BarChart3, Gauge, Play, MessageCircle } from 'lucide-react';
+import { BarChart3, Gauge, Play, Square, MessageCircle } from 'lucide-react';
 import { apiService } from '../../services/api.service';
 import type { PLCStatus } from '../../config/api-endpoints';
 import { isSessionActive } from '../../utils/session.utils';
@@ -14,6 +14,7 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
   const { currentTheme } = useTheme();
   const [currentStatus, setCurrentStatus] = useState<PLCStatus | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isSessionPending, setIsSessionPending] = useState(false);
 
   // Subscribe to real-time session updates
   useEffect(() => {
@@ -133,6 +134,44 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     if (total === 0) return 0;
     return Math.min(100, (elapsed / total) * 100);
   };
+
+  // Session control handlers
+  const handleStartSession = async () => {
+    if (!isConnected || isSessionPending) return;
+    
+    setIsSessionPending(true);
+    try {
+      const response = await apiService.startSession();
+      if (!response.success) {
+        console.error('Failed to start session:', response.message);
+        // Could add toast notification here
+      }
+    } catch (error) {
+      console.error('Error starting session:', error);
+    } finally {
+      setIsSessionPending(false);
+    }
+  };
+
+  const handleStopSession = async () => {
+    if (!isConnected || isSessionPending) return;
+    
+    setIsSessionPending(true);
+    try {
+      const response = await apiService.endSession();
+      if (!response.success) {
+        console.error('Failed to stop session:', response.message);
+        // Could add toast notification here
+      }
+    } catch (error) {
+      console.error('Error stopping session:', error);
+    } finally {
+      setIsSessionPending(false);
+    }
+  };
+
+  // Determine if session is currently running
+  const isSessionRunning = currentStatus?.session?.running_state || false;
 
   const sessionStatus = getSessionStatus();
 
@@ -257,15 +296,29 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
         {/* Session Control Buttons Grid */}
         <div className="grid grid-cols-3 gap-3">
           <button 
-            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            onClick={isSessionRunning ? handleStopSession : handleStartSession}
+            disabled={!isConnected || isSessionPending}
+            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             style={{
-              backgroundColor: currentTheme.colors.primary,
-              color: currentTheme.colors.brand,
-              border: `1px solid ${currentTheme.colors.brand}`
+              backgroundColor: isSessionRunning 
+                ? `${currentTheme.colors.danger}15` 
+                : `${currentTheme.colors.success}15`,
+              color: isSessionRunning 
+                ? currentTheme.colors.danger 
+                : currentTheme.colors.success,
+              border: `1px solid ${isSessionRunning 
+                ? currentTheme.colors.danger + '30' 
+                : currentTheme.colors.success + '30'}`
             }}
           >
-            <Play size={14} />
-            <span>Stop/Start</span>
+            {isSessionPending ? (
+              <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : isSessionRunning ? (
+              <Square size={14} />
+            ) : (
+              <Play size={14} />
+            )}
+            <span>{isSessionPending ? 'Pending...' : isSessionRunning ? 'Stop' : 'Start'}</span>
           </button>
           
           <button 

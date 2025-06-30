@@ -1,11 +1,42 @@
 /**
- * Mock API Service
+ * Mock API Service for Development and Testing
  * 
- * Simulates backend API responses for frontend testing
+ * This service simulates backend API responses and integrates with mock data systems.
+ * Used when VITE_MOCK_MODE or VITE_MOCK_API environment variables are enabled.
  */
 
 import type { ApiResponse } from '../config/api-endpoints';
 import { plcDataMock } from './plc-data.mock';
+
+// Simple browser-compatible event emitter
+class SimpleEventEmitter {
+  private events: Record<string, Function[]> = {};
+
+  on(event: string, callback: Function): void {
+    if (!this.events[event]) {
+      this.events[event] = [];
+    }
+    this.events[event].push(callback);
+  }
+
+  off(event: string, callback: Function): void {
+    if (this.events[event]) {
+      this.events[event] = this.events[event].filter(cb => cb !== callback);
+    }
+  }
+
+  emit(event: string, data?: any): void {
+    if (this.events[event]) {
+      this.events[event].forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
+    }
+  }
+}
 
 export interface MockApiConfig {
   enabled: boolean;
@@ -21,12 +52,16 @@ const DEFAULT_CONFIG: MockApiConfig = {
   enabled: true,
   responseDelay: { min: 100, max: 500 },
   errorRate: 0.05, // 5% error rate
-  networkJitter: true,
+  networkJitter: false,
 };
 
-class MockApiService {
+const MOCK_USER_PASSWORD = '1234';
+const MOCK_ADMIN_PASSWORD = '9999';
+
+class MockAPIService extends SimpleEventEmitter {
   private config: MockApiConfig = { ...DEFAULT_CONFIG };
   private requestCount = 0;
+  private currentStatus = plcDataMock.getCurrentData();
 
   configure(config: Partial<MockApiConfig>): void {
     this.config = { ...this.config, ...config };
@@ -95,7 +130,7 @@ class MockApiService {
       return this.createErrorResponse('Failed to get system status');
     }
 
-    return this.createResponse(plcDataMock.getCurrentData(), 'System status retrieved');
+    return this.createResponse(this.currentStatus, 'System status retrieved');
   }
 
   // Control commands
@@ -108,8 +143,10 @@ class MockApiService {
 
     plcDataMock.toggleControl('ceiling_lights_state');
     
+    this.currentStatus = plcDataMock.getCurrentData();
+    
     return this.createResponse(
-      { ceiling_lights_state: plcDataMock.getCurrentData().control_panel.ceiling_lights_state },
+      { ceiling_lights_state: this.currentStatus.control_panel.ceiling_lights_state },
       'Ceiling lights toggled'
     );
   }
@@ -123,8 +160,10 @@ class MockApiService {
 
     plcDataMock.toggleControl('reading_lights_state');
     
+    this.currentStatus = plcDataMock.getCurrentData();
+    
     return this.createResponse(
-      { reading_lights_state: plcDataMock.getCurrentData().control_panel.reading_lights_state },
+      { reading_lights_state: this.currentStatus.control_panel.reading_lights_state },
       'Reading lights toggled'
     );
   }
@@ -138,8 +177,10 @@ class MockApiService {
 
     plcDataMock.toggleControl('ac_state');
     
+    this.currentStatus = plcDataMock.getCurrentData();
+    
     return this.createResponse(
-      { ac_state: plcDataMock.getCurrentData().control_panel.ac_state },
+      { ac_state: this.currentStatus.control_panel.ac_state },
       'AC toggled'
     );
   }
@@ -153,8 +194,10 @@ class MockApiService {
 
     plcDataMock.toggleControl('intercom_state');
     
+    this.currentStatus = plcDataMock.getCurrentData();
+    
     return this.createResponse(
-      { intercom_state: plcDataMock.getCurrentData().control_panel.intercom_state },
+      { intercom_state: this.currentStatus.control_panel.intercom_state },
       'Intercom toggled'
     );
   }
@@ -168,6 +211,8 @@ class MockApiService {
     }
 
     plcDataMock.startMockSession();
+    
+    this.currentStatus = plcDataMock.getCurrentData();
     
     return this.createResponse(
       { 
@@ -187,6 +232,8 @@ class MockApiService {
     }
 
     plcDataMock.stopMockSession();
+    
+    this.currentStatus = plcDataMock.getCurrentData();
     
     return this.createResponse(
       { 
@@ -214,6 +261,8 @@ class MockApiService {
     const newData = plcDataMock.getCurrentData();
     const newSetpoint = newData.pressure.setpoint;
     
+    this.currentStatus = newData;
+    
     return this.createResponse(
       { 
         pressure_setpoint: newSetpoint,
@@ -240,6 +289,8 @@ class MockApiService {
     const newData = plcDataMock.getCurrentData();
     const newSetpoint = newData.pressure.setpoint;
     
+    this.currentStatus = newData;
+    
     return this.createResponse(
       { 
         pressure_setpoint: newSetpoint,
@@ -263,6 +314,8 @@ class MockApiService {
 
     const currentData = plcDataMock.getCurrentData();
     plcDataMock.setTargetPressure(setpoint);
+    
+    this.currentStatus = plcDataMock.getCurrentData();
     
     return this.createResponse(
       { 
@@ -289,6 +342,8 @@ class MockApiService {
       return this.createErrorResponse('Invalid password', 401);
     }
 
+    this.currentStatus = currentData;
+    
     return this.createResponse(
       { 
         authenticated: true,
@@ -299,25 +354,92 @@ class MockApiService {
     );
   }
 
-  // Password Authentication Methods
-  async proceedWithPassword(password: string): Promise<ApiResponse> {
-    await this.delay();
+  // Validate password against both user and admin passwords
+  async validatePassword(password: string): Promise<boolean> {
+    console.log('MockAPIService: Validating password:', password);
     
-    if (this.shouldError()) {
-      return this.createErrorResponse('Failed to proceed with password');
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const isUserPassword = password === MOCK_USER_PASSWORD;
+    const isAdminPassword = password === MOCK_ADMIN_PASSWORD;
+    
+    if (isUserPassword || isAdminPassword) {
+      // Set PLC status bits based on access level
+      this.currentStatus.auth.proceed_status = true;
+      this.currentStatus.auth.change_password_status = isAdminPassword; // Only admin can change password
+      
+      console.log('MockAPIService: PIN validation successful', {
+        isAdmin: isAdminPassword,
+        proceed_status: this.currentStatus.auth.proceed_status,
+        change_password_status: this.currentStatus.auth.change_password_status
+      });
+    } else {
+      // Invalid password - clear both status bits
+      this.currentStatus.auth.proceed_status = false;
+      this.currentStatus.auth.change_password_status = false;
+      
+      console.log('MockAPIService: PIN validation failed');
     }
-
-    // This validates the password in real-time and sets proceed_status
-    plcDataMock.proceedWithPassword(password);
     
-    const currentData = plcDataMock.getCurrentData();
-    // Always return success - the proceed_status in PLC data indicates if password is valid
+    // Emit status update to notify frontend
+    this.emit('status-update', { ...this.currentStatus });
+    
+    return isUserPassword || isAdminPassword;
+  }
+
+  // Process proceed action (called after validation)
+  async proceedWithPassword(password: string): Promise<boolean> {
+    console.log('MockAPIService: Processing proceed with password');
+    
+    // Only proceed if password was previously validated (proceed_status is true)
+    if (!this.currentStatus.auth.proceed_status) {
+      throw new Error('Password not validated');
+    }
+    
+    // Simulate the PLC proceed action
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Reset auth status after successful proceed
+    this.currentStatus.auth.proceed_status = false;
+    this.currentStatus.auth.change_password_status = false;
+    this.currentStatus.auth.show_password = false;
+    
+    console.log('MockAPIService: Proceed successful, clearing auth status');
+    this.emit('status-update', { ...this.currentStatus });
+    
+    return true;
+  }
+
+  // Clear password validation status
+  async invalidatePassword(): Promise<void> {
+    console.log('MockAPIService: Invalidating password status');
+    
+    this.currentStatus.auth.proceed_status = false;
+    this.currentStatus.auth.change_password_status = false;
+    
+    // Emit status update
+    this.emit('status-update', { ...this.currentStatus });
+  }
+
+  // Cancel password request (activates back_password bit)
+  async cancelPasswordRequest(): Promise<ApiResponse> {
+    console.log('MockAPIService: Cancelling password request (back_password activated)');
+    
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Reset all auth-related status
+    this.currentStatus.auth.show_password = false;
+    this.currentStatus.auth.proceed_status = false;
+    this.currentStatus.auth.change_password_status = false;
+    
+    console.log('MockAPIService: Password request cancelled, all auth status cleared');
+    this.emit('status-update', { ...this.currentStatus });
+    
     return this.createResponse(
-      { 
-        proceed_status: currentData.auth.proceed_status,
-        message: currentData.auth.proceed_status ? 'Password validated' : 'Password validation complete',
-      },
-      'Password validation complete'
+      { back_password: true },
+      'Password request cancelled'
     );
   }
 
@@ -340,23 +462,7 @@ class MockApiService {
     );
   }
 
-  async cancelPasswordRequest(): Promise<ApiResponse> {
-    await this.delay();
-    
-    if (this.shouldError()) {
-      return this.createErrorResponse('Failed to cancel password request');
-    }
 
-    plcDataMock.cancelPasswordRequest();
-    
-    return this.createResponse(
-      { 
-        cancelled: true,
-        show_password: false,
-      },
-      'Password request cancelled'
-    );
-  }
 
   async changePassword(oldPassword: string, newPassword: string): Promise<ApiResponse> {
     await this.delay();
@@ -708,4 +814,4 @@ class MockApiService {
 }
 
 // Export singleton instance
-export const mockApiService = new MockApiService(); 
+export const mockApiService = new MockAPIService(); 

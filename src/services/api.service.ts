@@ -446,18 +446,27 @@ class ApiService {
           if (method === 'POST' && options.body) {
             try {
               const body = JSON.parse(options.body as string);
-              return await mockApiService.proceedWithPassword(body.password) as ApiResponse<T>;
+              await mockApiService.validatePassword(body.password);
+              return { success: true, message: 'Password validation request sent', timestamp: new Date().toISOString() } as ApiResponse<T>;
             } catch (e) {
               console.error('Failed to parse password validation request body:', e);
             }
           } else if (method === 'DELETE') {
-            return await mockApiService.invalidatePasswordStatus() as ApiResponse<T>;
+            await mockApiService.invalidatePassword();
+            return { success: true, message: 'Password status invalidated', timestamp: new Date().toISOString() } as ApiResponse<T>;
           }
           break;
 
         case API_ENDPOINTS.AUTH.PROCEED:
-          if (method === 'POST') {
-            return await mockApiService.confirmPasswordProceed() as ApiResponse<T>;
+          if (method === 'POST' && options.body) {
+            try {
+              const body = JSON.parse(options.body as string);
+              await mockApiService.proceedWithPassword(body.password);
+              return { success: true, message: 'Password proceed confirmed', timestamp: new Date().toISOString() } as ApiResponse<T>;
+            } catch (e) {
+              console.error('Failed to parse password proceed request body:', e);
+              return { success: false, message: e instanceof Error ? e.message : 'Invalid request', timestamp: new Date().toISOString() } as ApiResponse<T>;
+            }
           }
           break;
           

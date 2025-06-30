@@ -24,17 +24,18 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [currentField, setCurrentField] = useState<'password' | 'newPassword' | 'confirmNewPassword'>('password');
   const [error, setError] = useState('');
-  const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [plcStatus, setPLCStatus] = useState<PLCStatus | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [awaitingPLCResponse, setAwaitingPLCResponse] = useState(false);
 
-  // Monitor PLC status for password validation
+  // Monitor PLC status for button enable/disable logic
   useEffect(() => {
     const handleStatusUpdate = (status: PLCStatus) => {
       setPLCStatus(status);
-      
-      // Update password validation based on PLC feedback
-      if (currentField === 'password' && password.length === 4) {
-        setIsPasswordValid(status.auth.proceed_status);
+      // Complete validation when PLC responds after validation request
+      if (awaitingPLCResponse && currentField === 'password' && password.length === 4) {
+        setIsValidating(false);
+        setAwaitingPLCResponse(false);
       }
     };
 
@@ -48,51 +49,65 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     return () => {
       apiService.off('status-update', handleStatusUpdate);
     };
-  }, [password, currentField]);
+  }, [awaitingPLCResponse, currentField, password]);
 
-  // Validate password with PLC when password changes
+  // Validate PIN with backend when 4 digits are entered
   useEffect(() => {
     if (currentField === 'password' && password.length === 4) {
-      // Send password to PLC for validation (this will trigger proceed_status update)
-      validatePasswordWithPLC(password);
-    } else {
-      setIsPasswordValid(false);
+      validatePinWithBackend(password);
     }
   }, [password, currentField]);
 
-  const validatePasswordWithPLC = async (pin: string) => {
+  const validatePinWithBackend = async (pin: string) => {
+    setIsValidating(true);
+    setAwaitingPLCResponse(true);
     try {
-      // Send password to PLC for real-time validation
-      // The PLC responds by setting auth.proceed_status = true/false
+      // Send PIN to backend for validation
+      // Backend will set proceed_status and change_password_status based on PIN match
       await apiService.validatePassword(pin);
     } catch (error) {
-      // Password validation failed, PLC will not set proceed_status
-      console.debug('Password validation in progress...');
+      console.error('PIN validation failed:', error);
+      setIsValidating(false);
+      setAwaitingPLCResponse(false);
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    setError('');
+    try {
+      // Activate back_password bit on PLC when cancelling
+      await apiService.cancelPasswordRequest();
+      resetAllFields();
+      onCancel();
+    } catch (error) {
+      console.error('Failed to cancel password request:', error);
+      // Still proceed with closing the modal even if API call fails
+      resetAllFields();
+      onCancel();
+    }
+  };
+
+  const resetAllFields = () => {
     setPassword('');
     setNewPassword('');
     setConfirmNewPassword('');
     setIsChangingPassword(false);
     setCurrentField('password');
-    setIsPasswordValid(false);
     setError('');
-    onCancel();
+    setIsValidating(false);
+    setAwaitingPLCResponse(false);
   };
 
   const handleProceed = async () => {
-    if (!isPasswordValid || password.length !== 4) {
-      return; // Button should be disabled anyway
+    if (!canProceed()) {
+      return;
     }
+    
     setError('');
     try {
-      // Actually proceed with the validated password
       await apiService.proceedWithPassword(password);
       onProceed(password);
-      setPassword('');
-      setIsPasswordValid(false);
+      resetAllFields();
     } catch (error) {
       console.error('Failed to proceed with password:', error);
       setError('Failed to proceed. Please try again.');
@@ -119,12 +134,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     
     setError('');
     onChangePassword(password, newPassword);
-    setPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
-    setIsChangingPassword(false);
-    setCurrentField('password');
-    setIsPasswordValid(false);
+    resetAllFields();
   };
 
   const toggleChangePasswordMode = () => {
@@ -134,22 +144,19 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     setNewPassword('');
     setConfirmNewPassword('');
     setCurrentField('password');
-    setIsPasswordValid(false);
+    setIsValidating(false);
+    setAwaitingPLCResponse(false);
   };
 
   const handleNumberInput = (digit: string) => {
-    setError(''); // Clear any previous errors
+    setError('');
+    setIsValidating(false); // Clear validating state when PIN is modified
+    setAwaitingPLCResponse(false);
     
     switch (currentField) {
       case 'password':
         if (password.length < 4) {
-          const newPassword = password + digit;
-          setPassword(newPassword);
-          setIsPasswordValid(false); // Reset validation until PLC responds
-          // Immediately invalidate PLC proceed status when PIN is modified
-          if (currentField === 'password' && !isChangingPassword) {
-            apiService.invalidatePassword().catch(console.error);
-          }
+          setPassword(prev => prev + digit);
         }
         break;
       case 'newPassword':
@@ -167,13 +174,8 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
 
   const handleClear = () => {
     setError('');
-    setIsPasswordValid(false);
-    
-    // Immediately invalidate PLC proceed status when PIN is cleared
-    if (currentField === 'password' && !isChangingPassword) {
-      apiService.invalidatePassword().catch(console.error);
-    }
-    
+    setIsValidating(false); // Clear validating state when PIN is cleared
+    setAwaitingPLCResponse(false);
     switch (currentField) {
       case 'password':
         setPassword('');
@@ -189,16 +191,11 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
 
   const handleBackspace = () => {
     setError('');
-    
+    setIsValidating(false); // Clear validating state when PIN is modified
+    setAwaitingPLCResponse(false);
     switch (currentField) {
       case 'password':
-        const newPassword = password.slice(0, -1);
-        setPassword(newPassword);
-        setIsPasswordValid(false);
-        // Immediately invalidate PLC proceed status when PIN is modified
-        if (currentField === 'password' && !isChangingPassword) {
-          apiService.invalidatePassword().catch(console.error);
-        }
+        setPassword(prev => prev.slice(0, -1));
         break;
       case 'newPassword':
         setNewPassword(prev => prev.slice(0, -1));
@@ -274,13 +271,16 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     }
   };
 
+  // Button enable/disable logic based on PLC status
   const canProceed = () => {
+    if (!plcStatus) return false;
+    
     if (!isChangingPassword) {
-      // For main password entry, only enable if PLC validates the password
-      return password.length === 4 && isPasswordValid;
+      // Main proceed button: enabled if PLC proceed_status is true
+      return password.length === 4 && plcStatus.auth.proceed_status;
     }
     
-    // For password change flow
+    // Password change flow
     switch (currentField) {
       case 'password':
         return password.length === 4;
@@ -293,6 +293,12 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     }
   };
 
+  const canChangePassword = () => {
+    if (!plcStatus) return false;
+    // Change password button: enabled if PLC change_password_status is true (admin access)
+    return password.length === 4 && plcStatus.auth.change_password_status;
+  };
+
   const getFieldStatusColor = () => {
     if (currentField !== 'password' || isChangingPassword) {
       return currentTheme.colors.border;
@@ -302,7 +308,48 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
       return currentTheme.colors.border;
     }
     
-    return isPasswordValid ? currentTheme.colors.success : currentTheme.colors.danger;
+    // Show neutral color while validating or awaiting PLC response
+    if (isValidating || awaitingPLCResponse) {
+      return currentTheme.colors.brand;
+    }
+    
+    if (!plcStatus) {
+      return currentTheme.colors.border;
+    }
+    
+    // Show validation colors based on PLC proceed status
+    return plcStatus.auth.proceed_status ? currentTheme.colors.success : currentTheme.colors.danger;
+  };
+
+  const getPinValidationStatus = () => {
+    if (currentField !== 'password' || isChangingPassword || password.length !== 4) {
+      return null;
+    }
+    
+    // Show validating message while validation is in progress
+    if (isValidating || awaitingPLCResponse) {
+      return {
+        message: '⏳ Validating PIN...',
+        color: currentTheme.colors.brand
+      };
+    }
+    
+    if (!plcStatus) {
+      return null;
+    }
+    
+    // Show validation results based on PLC proceed status
+    if (plcStatus.auth.proceed_status) {
+      return {
+        message: plcStatus.auth.change_password_status ? '✓ Admin Access' : '✓ PIN Verified',
+        color: currentTheme.colors.success
+      };
+    } else {
+      return {
+        message: '✗ Invalid PIN',
+        color: currentTheme.colors.danger
+      };
+    }
   };
 
   return (
@@ -312,9 +359,15 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
       title="PIN Required"
       subtitle={isChangingPassword ? "Change your PIN" : "Enter 4-digit PIN to continue"}
       width="w-[600px]"
-      height="h-auto"
+      height="h-[800px]"
     >
-      <div className="p-6 space-y-6">
+      <div 
+        className="p-6 space-y-6"
+        style={{ 
+          overflow: 'visible',
+          maxHeight: 'none'
+        }}
+      >
         {/* Current Field Display */}
         <div className="text-center">
           <label 
@@ -341,15 +394,14 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
           </div>
           
           {/* Status indicator for main password field */}
-          {!isChangingPassword && currentField === 'password' && password.length === 4 && (
-            <div className="mt-2 text-sm">
-              {isPasswordValid ? (
-                <span style={{ color: currentTheme.colors.success }}>✓ PIN Verified</span>
-              ) : (
-                <span style={{ color: currentTheme.colors.danger }}>✗ Invalid PIN</span>
-              )}
-            </div>
-          )}
+          {(() => {
+            const status = getPinValidationStatus();
+            return status ? (
+              <div className="mt-2 text-sm">
+                <span style={{ color: status.color }}>{status.message}</span>
+              </div>
+            ) : null;
+          })()}
         </div>
 
         {/* Numeric Keypad */}
@@ -492,12 +544,13 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
           <div className="flex space-x-3">
             <button
               onClick={toggleChangePasswordMode}
-              className="px-6 py-3 rounded-lg border font-medium transition-all duration-200 hover:opacity-80"
+              className="px-6 py-3 rounded-lg border font-medium transition-all duration-200 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: currentTheme.colors.secondary,
+                backgroundColor: canChangePassword() || isChangingPassword ? currentTheme.colors.secondary : currentTheme.colors.border,
                 borderColor: currentTheme.colors.border,
-                color: currentTheme.colors.textPrimary,
+                color: canChangePassword() || isChangingPassword ? currentTheme.colors.textPrimary : currentTheme.colors.textSecondary,
               }}
+              disabled={!isChangingPassword && !canChangePassword()}
             >
               {isChangingPassword ? 'Back to Login' : 'Change PIN'}
             </button>
