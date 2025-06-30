@@ -105,9 +105,9 @@ export class PLCDataMock {
       },
       
       pressure: {
-        setpoint: 1.0, // ATA
-        internal_pressure_1: 1.0,
-        internal_pressure_2: 1.0,
+        setpoint: 28.6, // Backend units (will convert to 1.0 ATA via 0.035 factor)
+        internal_pressure_1: 28.6,
+        internal_pressure_2: 28.6,
       },
       
       session: {
@@ -313,12 +313,12 @@ export class PLCDataMock {
 
   private updatePressurizing(elapsed: number): void {
     const progress = Math.min(elapsed / 30000, 1); // 30 second pressurization
-    const targetPressure = 1.99; // Changed from 2.5 to 1.99 ATA
+    const targetPressure = 56.9; // 1.99 ATA in backend units (1.99 * 28.6)
     
     this.setSessionState('pressuring');
     
-    this.baseData.pressure.internal_pressure_1 = 1.0 + (progress * (targetPressure - 1.0));
-    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.02;
+    this.baseData.pressure.internal_pressure_1 = 28.6 + (progress * (targetPressure - 28.6)); // 1.0 to 1.99 ATA range
+    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.6; // ~0.02 ATA equivalent
     this.baseData.pressure.setpoint = targetPressure;
     
     // Set professional mode during pressurization
@@ -336,9 +336,9 @@ export class PLCDataMock {
     this.setSessionState('stabilising');
     
     // Stable pressure with small fluctuations
-    this.baseData.pressure.internal_pressure_1 = 1.99 + (Math.sin(elapsed / 5000) * 0.02);
-    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.01;
-    this.baseData.pressure.setpoint = 1.99;
+    this.baseData.pressure.internal_pressure_1 = 56.9 + (Math.sin(elapsed / 5000) * 0.6); // 1.99 ATA ± 0.02 ATA in backend units
+    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.3; // ~0.01 ATA equivalent
+    this.baseData.pressure.setpoint = 56.9; // 1.99 ATA in backend units
     
     // Maintain professional mode during treatment with high oxygen
     this.setOperatingMode('professional');
@@ -368,9 +368,9 @@ export class PLCDataMock {
       this.baseData.session.session_ended = true;
     }
     
-    this.baseData.pressure.internal_pressure_1 = 1.99 - (progress * 0.99); // Changed from 2.5 to 1.99, pressure drop from 0.99 ATA
-    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.02;
-    this.baseData.pressure.setpoint = 1.0;
+    this.baseData.pressure.internal_pressure_1 = 56.9 - (progress * 28.3); // 1.99 to 1.0 ATA range in backend units
+    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.6; // ~0.02 ATA equivalent
+    this.baseData.pressure.setpoint = 28.6; // 1.0 ATA in backend units
     
     this.baseData.timers.session_elapsed_time = Math.floor((Date.now() - this.startTime) / 1000);
     
@@ -385,9 +385,9 @@ export class PLCDataMock {
     this.setSessionState('depressurise');
     this.baseData.session.depressurise_confirm = true;
     
-    this.baseData.pressure.internal_pressure_1 = Math.max(1.0, 1.99 - (progress * 0.99)); // Changed from 2.5 to 1.99
-    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 0.05;
-    this.baseData.pressure.setpoint = 1.0;
+    this.baseData.pressure.internal_pressure_1 = Math.max(28.6, 56.9 - (progress * 28.3)); // 1.99 to 1.0 ATA in backend units
+    this.baseData.pressure.internal_pressure_2 = this.baseData.pressure.internal_pressure_1 + (Math.random() - 0.5) * 1.4; // ~0.05 ATA equivalent
+    this.baseData.pressure.setpoint = 28.6; // 1.0 ATA in backend units
     
     // Flash lights during emergency
     this.baseData.control_panel.ceiling_lights_state = Math.sin(elapsed / 200) > 0;
@@ -400,9 +400,9 @@ export class PLCDataMock {
     this.baseData.system.plc_connected = true;
     this.setSessionState('stop'); // Maintenance uses stop state
     this.baseData.manual.manual_mode = true;
-    this.baseData.pressure.setpoint = 1.0;
-    this.baseData.pressure.internal_pressure_1 = 1.0;
-    this.baseData.pressure.internal_pressure_2 = 1.0;
+    this.baseData.pressure.setpoint = 28.6; // 1.0 ATA in backend units
+    this.baseData.pressure.internal_pressure_1 = 28.6;
+    this.baseData.pressure.internal_pressure_2 = 28.6;
     
     // All controls off during maintenance
     this.baseData.control_panel = {
@@ -488,10 +488,10 @@ export class PLCDataMock {
     // Simulate alarm by setting relevant flags
     switch (alarmId) {
       case 'pressure_high':
-        this.baseData.pressure.internal_pressure_1 = 6.0;
+        this.baseData.pressure.internal_pressure_1 = 171.6; // 6.0 ATA in backend units
         break;
       case 'pressure_low':
-        this.baseData.pressure.internal_pressure_1 = 0.5;
+        this.baseData.pressure.internal_pressure_1 = 14.3; // 0.5 ATA in backend units
         break;
       case 'oxygen_low':
         this.baseData.sensors.ambient_o2 = 15.0;
@@ -627,7 +627,7 @@ export class PLCDataMock {
   }
 
   setTargetPressure(pressure: number): void {
-    this.baseData.pressure.setpoint = Math.max(1.0, Math.min(6.0, pressure));
+    this.baseData.pressure.setpoint = Math.max(28.6, Math.min(171.6, pressure)); // 1.0-6.0 ATA in backend units
     this.notifyListeners();
   }
 
@@ -691,36 +691,36 @@ export class PLCDataMock {
   }
 
   private getPressureIncrement(currentPressure: number): number {
-    // Special case: increment by 0.09 from 1.9 to reach 1.99
-    if (currentPressure >= 1.9 && currentPressure < 1.99) {
-      return 0.09;
+    // Special case: increment by 0.09 ATA (2.6 backend units) from 1.9 to reach 1.99 ATA
+    if (currentPressure >= 54.3 && currentPressure < 56.9) { // 1.9-1.99 ATA in backend units
+      return 2.6; // 0.09 ATA in backend units
     }
-    // Normal case: increment by 0.1
-    return 0.1;
+    // Normal case: increment by 0.1 ATA (2.86 backend units)
+    return 2.86;
   }
 
   private getPressureDecrement(currentPressure: number): number {
-    // Special case: decrement by 0.09 from 1.99 to reach 1.9
-    if (currentPressure === 1.99) {
-      return 0.09;
+    // Special case: decrement by 0.09 ATA (2.6 backend units) from 1.99 to reach 1.9 ATA
+    if (currentPressure === 56.9) { // 1.99 ATA in backend units
+      return 2.6; // 0.09 ATA in backend units
     }
-    // Normal case: decrement by 0.1
-    return 0.1;
+    // Normal case: decrement by 0.1 ATA (2.86 backend units)
+    return 2.86;
   }
 
   private getCurrentPressureLimits(): { min: number; max: number } {
-    // Determine current operating mode
+    // Determine current operating mode - all values converted to backend units
     if (this.baseData.modes.mode_rest) {
-      return { min: 1.1, max: 1.5 };
+      return { min: 31.5, max: 42.9 }; // 1.1-1.5 ATA in backend units
     } else if (this.baseData.modes.mode_health) {
-      return { min: 1.4, max: 1.99 };
+      return { min: 40.0, max: 56.9 }; // 1.4-1.99 ATA in backend units
     } else if (this.baseData.modes.mode_professional) {
-      return { min: 1.5, max: 1.99 };
+      return { min: 42.9, max: 56.9 }; // 1.5-1.99 ATA in backend units
     } else if (this.baseData.modes.mode_custom) {
-      return { min: 1.1, max: 1.99 };
+      return { min: 31.5, max: 56.9 }; // 1.1-1.99 ATA in backend units
     } else {
       // Default limits for O2genes modes or unknown mode
-      return { min: 1.0, max: 6.0 };
+      return { min: 28.6, max: 171.6 }; // 1.0-6.0 ATA in backend units
     }
   }
 

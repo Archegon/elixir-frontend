@@ -63,8 +63,12 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
   const getPressureData = () => {
     if (!plcData || !plcData.pressure) return { current: 0, target: 0, percentage: 0, status: 'No Data' };
     
-    const current = plcData.pressure.internal_pressure_1 || 0;
-    const target = plcData.pressure.setpoint || 0;
+    // Convert pressure values from backend units to ATA
+    // Based on user feedback: 40.0 backend units = 1.4 ATA, so conversion factor is 0.035
+    const PRESSURE_CONVERSION_FACTOR = 0.035;
+    
+    const current = (plcData.pressure.internal_pressure_1 || 0) * PRESSURE_CONVERSION_FACTOR;
+    const target = (plcData.pressure.setpoint || 0) * PRESSURE_CONVERSION_FACTOR;
     const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
     
     let status = 'Normal';
@@ -220,13 +224,13 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              {pressureData.current.toFixed(3)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
+              {pressureData.current.toFixed(1)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
             </p>
             <p 
               className="text-xs"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Target: {pressureData.target.toFixed(3)} ATA
+              Target: {pressureData.target.toFixed(1)} ATA
             </p>
           </div>
           <div style={getProgressBarStyle(currentTheme, pressureData.percentage, 

@@ -170,6 +170,20 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     }
   };
 
+  // Intercom handler
+  const handleIntercomToggle = async () => {
+    if (!isConnected) return;
+    
+    try {
+      const response = await apiService.toggleIntercom();
+      if (!response.success) {
+        console.error('Failed to toggle intercom:', response.message);
+      }
+    } catch (error) {
+      console.error('Error toggling intercom:', error);
+    }
+  };
+
   // Determine if session is currently running
   const isSessionRunning = currentStatus?.session?.running_state || false;
 
@@ -334,11 +348,19 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
           </button>
           
           <button 
-            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            onClick={handleIntercomToggle}
+            disabled={!isConnected}
+            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: currentTheme.colors.primary,
-              color: currentTheme.colors.textSecondary,
-              border: `1px solid ${currentTheme.colors.border}`
+              backgroundColor: currentStatus?.control_panel?.intercom_state 
+                ? `${currentTheme.colors.brand}15`
+                : currentTheme.colors.primary,
+              color: currentStatus?.control_panel?.intercom_state 
+                ? currentTheme.colors.brand
+                : currentTheme.colors.textSecondary,
+              border: `1px solid ${currentStatus?.control_panel?.intercom_state 
+                ? currentTheme.colors.brand + '30'
+                : currentTheme.colors.border}`
             }}
           >
             <MessageCircle size={14} />

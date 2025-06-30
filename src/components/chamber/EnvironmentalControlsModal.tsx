@@ -309,7 +309,7 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
                         className="text-xs"
                         style={{ color: currentTheme.colors.textSecondary }}
                       >
-                        Current: {getCurrentTemperature()}°C
+                        Current: {getCurrentTemperature().toFixed(2)}°C
                       </div>
                     </div>
                     <button
