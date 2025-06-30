@@ -25,6 +25,32 @@ React-based frontend for the Elixir hyperbaric chamber control system with autom
 - Access to local network (for backend discovery)
 - Elixir backend service (for production mode)
 
+### Node.js Installation (Ubuntu/Debian)
+
+If you don't have Node.js installed, follow these steps:
+
+1. **Update package index**:
+   ```bash
+   sudo apt update
+   ```
+
+2. **Download and run the Node.js setup script**:
+   For the latest LTS version (recommended):
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+   ```
+
+3. **Install Node.js and npm**:
+   ```bash
+   sudo apt install -y nodejs
+   ```
+
+4. **Verify installation**:
+   ```bash
+   node --version
+   npm --version
+   ```
+
 ### Installation
 
    ```bash
