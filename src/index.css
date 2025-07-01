@@ -21,9 +21,12 @@ body {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  /* Disable text highlighting */
+  /* Disable text highlighting but allow touch interactions */
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+  /* Enable touch scrolling */
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Ensure React root takes full screen */
@@ -40,4 +43,18 @@ input, textarea, [contenteditable="true"] {
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
+}
+
+/* Enable smooth touch scrolling for scrollable areas */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  touch-action: auto;
+  overscroll-behavior: contain;
+}
+
+/* Specific touch scrolling for development page content */
+.development-scroll {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }

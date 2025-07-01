@@ -112,8 +112,8 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     return 'Unknown Rate';
   };
 
-  const getO2Delivery = (): string => {
-    if (!currentStatus) return 'Unknown';
+  const getO2Delivery = (): { text: string; isPlaceholder: boolean } => {
+    if (!currentStatus) return { text: 'Unknown', isPlaceholder: true };
     // Check which oxygen mode flag is active (mutually exclusive)
     const modes = currentStatus.modes;
     
@@ -126,16 +126,29 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
       });
     }
     
-    // Ensure mutually exclusive flags
-    if (modes.continuous_o2_flag && !modes.intermittent_o2_flag) return 'Continuous';
-    if (modes.intermittent_o2_flag && !modes.continuous_o2_flag) return 'Intermittent';
+    // Check for active flags (mutually exclusive)
+    if (modes.continuous_o2_flag && !modes.intermittent_o2_flag) {
+      return { text: 'Continuous', isPlaceholder: false };
+    }
+    if (modes.intermittent_o2_flag && !modes.continuous_o2_flag) {
+      return { text: 'Intermittent', isPlaceholder: false };
+    }
     
-    // If both or neither are set, default to continuous (shouldn't happen with proper backend)
-    console.warn('⚠️ O2 delivery flags inconsistent:', {
-      continuous: modes.continuous_o2_flag,
-      intermittent: modes.intermittent_o2_flag
-    });
-    return 'Continuous (Default)';
+    // Handle inconsistent flags (both true or both false)
+    if (modes.continuous_o2_flag && modes.intermittent_o2_flag) {
+      console.warn('⚠️ O2 delivery flags inconsistent - both are true:', {
+        continuous: modes.continuous_o2_flag,
+        intermittent: modes.intermittent_o2_flag
+      });
+      return { text: 'Configuration Error', isPlaceholder: true };
+    }
+    
+    // Handle case where both flags are false - show professional placeholder
+    if (!modes.continuous_o2_flag && !modes.intermittent_o2_flag) {
+      return { text: 'Awaiting Configuration', isPlaceholder: true };
+    }
+    
+    return { text: 'Awaiting Configuration', isPlaceholder: true };
   };
 
   const calculateProgress = (): number => {
@@ -205,6 +218,7 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
   const isSessionRunning = currentStatus?.session?.running_state || false;
 
   const sessionStatus = getSessionStatus();
+  const o2DeliveryInfo = getO2Delivery();
 
   return (
     <div 
@@ -297,11 +311,15 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
           <div 
             className="px-3 py-2 rounded-lg text-sm font-medium"
             style={{ 
-              backgroundColor: `${currentTheme.colors.success}15`,
-              color: currentTheme.colors.success
+              backgroundColor: o2DeliveryInfo.isPlaceholder 
+                ? `${currentTheme.colors.textSecondary}10`
+                : `${currentTheme.colors.success}15`,
+              color: o2DeliveryInfo.isPlaceholder 
+                ? currentTheme.colors.textSecondary
+                : currentTheme.colors.success
             }}
           >
-            {getO2Delivery()}
+            {o2DeliveryInfo.text}
           </div>
         </div>
       </div>

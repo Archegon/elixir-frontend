@@ -186,7 +186,7 @@ const Development: React.FC = () => {
         </div>
 
         {/* PLC Data Content - Scrollable */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto development-scroll">
           {plcData ? (
             <>
               {renderSection('Authentication', plcData.auth)}
@@ -219,7 +219,7 @@ const Development: React.FC = () => {
                   Raw JSON Data
                 </h3>
                 <pre
-                  className="text-xs overflow-auto max-h-96 p-4 rounded-lg"
+                  className="text-xs overflow-auto max-h-96 p-4 rounded-lg touch-scroll"
                   style={{
                     backgroundColor: currentTheme.colors.secondary,
                     color: currentTheme.colors.textSecondary,
