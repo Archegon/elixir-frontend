@@ -143,7 +143,7 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
     }
   };
 
-  const handleLightToggle = async (lightType: 'ceiling' | 'reading') => {
+  const handleLightToggle = async (lightType: 'ceiling' | 'reading' | 'door') => {
     if (!isConnected || pendingOperations.has(`${lightType}_lights`)) return;
     
     setPendingOperations(prev => new Set(prev).add(`${lightType}_lights`));
@@ -151,8 +151,10 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
       let response;
       if (lightType === 'ceiling') {
         response = await apiService.toggleCeilingLights();
-      } else {
+      } else if (lightType === 'reading') {
         response = await apiService.toggleReadingLights();
+      } else {
+        response = await apiService.toggleDoorLights();
       }
       
       if (!response.success) {
@@ -199,6 +201,10 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
 
   const getReadingLightsState = (): boolean => {
     return currentStatus?.control_panel?.reading_lights_state || false;
+  };
+
+  const getDoorLightsState = (): boolean => {
+    return currentStatus?.control_panel?.door_lights_state || false;
   };
 
   const footer = (
@@ -396,11 +402,12 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
               <div className="space-y-3">
                 {[
                   { key: 'reading', label: 'Reading Lights', icon: BookOpen, getState: getReadingLightsState },
-                  { key: 'ceiling', label: 'Ceiling Lights', icon: Lightbulb, getState: getCeilingLightsState }
+                  { key: 'ceiling', label: 'Ceiling Lights', icon: Lightbulb, getState: getCeilingLightsState },
+                  { key: 'door', label: 'Door Lights', icon: DoorOpen, getState: getDoorLightsState }
                 ].map(({ key, label, icon: Icon, getState }) => (
                   <button
                     key={key}
-                    onClick={() => handleLightToggle(key as 'ceiling' | 'reading')}
+                    onClick={() => handleLightToggle(key as 'ceiling' | 'reading' | 'door')}
                     disabled={!isConnected || pendingOperations.has(`${key}_lights`)}
                     className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{

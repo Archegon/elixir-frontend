@@ -392,6 +392,11 @@ class ApiService {
     return this.executeCommand(API_ENDPOINTS.CONTROL.READING_LIGHTS, 'reading_lights', !currentState);
   }
 
+  async toggleDoorLights(): Promise<ApiResponse> {
+    const currentState = this.getCurrentState('door_lights');
+    return this.executeCommand(API_ENDPOINTS.CONTROL.DOOR_LIGHTS, 'door_lights', !currentState);
+  }
+
   async toggleAC(): Promise<ApiResponse> {
     const currentState = this.getCurrentState('ac');
     return this.executeCommand(API_ENDPOINTS.CONTROL.AC_TOGGLE, 'ac', !currentState);

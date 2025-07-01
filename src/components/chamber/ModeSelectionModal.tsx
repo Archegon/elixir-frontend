@@ -164,6 +164,16 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
       const initialStatus = apiService.getSystemStatus();
       if (import.meta.env.MODE === 'development') {
         console.log('🔧 ModeSelectionModal - Modal opened, getting initial status:', initialStatus);
+        console.log('🔧 ModeSelectionModal - Current treatment mode from PLC:', {
+          mode_rest: initialStatus?.modes?.mode_rest,
+          mode_health: initialStatus?.modes?.mode_health,
+          mode_professional: initialStatus?.modes?.mode_professional,
+          mode_custom: initialStatus?.modes?.mode_custom,
+          mode_o2_100: initialStatus?.modes?.mode_o2_100,
+          mode_o2_120: initialStatus?.modes?.mode_o2_120,
+          active_mode: initialStatus?.modes ? Object.entries(initialStatus.modes).find(([key, value]) => 
+            key.startsWith('mode_') && value === true)?.[0] : 'none'
+        });
       }
       
       if (initialStatus) {
@@ -370,14 +380,17 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     }
   };
 
-  // Get current treatment mode key
+  // Get current treatment mode key - read directly from PLC status (like SessionInfoCard)
   const getCurrentTreatmentMode = (): string => {
-    if (config.mode_rest) return 'mode_rest';
-    if (config.mode_health) return 'mode_health';
-    if (config.mode_professional) return 'mode_professional';
-    if (config.mode_custom) return 'mode_custom';
-    if (config.mode_o2_100) return 'mode_o2_100';
-    if (config.mode_o2_120) return 'mode_o2_120';
+    if (!plcStatus?.modes) return 'mode_professional'; // default fallback
+    
+    const modes = plcStatus.modes;
+    if (modes.mode_rest) return 'mode_rest';
+    if (modes.mode_health) return 'mode_health';
+    if (modes.mode_professional) return 'mode_professional';
+    if (modes.mode_custom) return 'mode_custom';
+    if (modes.mode_o2_100) return 'mode_o2_100';
+    if (modes.mode_o2_120) return 'mode_o2_120';
     return 'mode_professional'; // default
   };
 
@@ -414,9 +427,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     }
   };
 
-  // Check if configuration sections should be shown
+  // Check if configuration sections should be shown - read directly from PLC status
   const isO2GenesMode = () => {
-    return config.mode_o2_100 || config.mode_o2_120;
+    return plcStatus?.modes?.mode_o2_100 || plcStatus?.modes?.mode_o2_120;
   };
 
   const shouldShowPressureConfig = () => !isO2GenesMode();
@@ -544,28 +557,33 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                   </div>
                   
                   <div className="space-y-2">
-                    {treatmentModes.map(({ key, label, description, color }) => (
-                      <button
-                        key={key}
-                        onClick={() => updateTreatmentMode(key as TreatmentMode)}
-                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                        style={{
-                          backgroundColor: config[key as keyof ModeConfiguration] 
-                            ? `${color}20` 
-                            : `${currentTheme.colors.border}20`,
-                          border: `1px solid ${config[key as keyof ModeConfiguration] ? color : currentTheme.colors.border}40`,
-                          color: currentTheme.colors.textPrimary
-                        }}
-                      >
-                        <div className="font-medium text-sm">{label}</div>
-                        <div 
-                          className="text-xs mt-1"
-                          style={{ color: currentTheme.colors.textSecondary }}
+                    {treatmentModes.map(({ key, label, description, color }) => {
+                      // Check PLC status directly for accurate mode selection display (like SessionInfoCard does)
+                      const isSelected = plcStatus?.modes ? plcStatus.modes[key as keyof typeof plcStatus.modes] : false;
+                      
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => updateTreatmentMode(key as TreatmentMode)}
+                          className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                          style={{
+                            backgroundColor: isSelected 
+                              ? `${color}20` 
+                              : `${currentTheme.colors.border}20`,
+                            border: `1px solid ${isSelected ? color : currentTheme.colors.border}40`,
+                            color: currentTheme.colors.textPrimary
+                          }}
                         >
-                          {description}
-                        </div>
-                      </button>
-                    ))}
+                          <div className="font-medium text-sm">{label}</div>
+                          <div 
+                            className="text-xs mt-1"
+                            style={{ color: currentTheme.colors.textSecondary }}
+                          >
+                            {description}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -590,28 +608,33 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                     <div className="space-y-2">
                       {compressionModes
                         .filter(({ key }) => getAvailableCompressionModes().includes(key))
-                        .map(({ key, label, description, color }) => (
-                        <button
-                          key={key}
-                          onClick={() => updateCompressionMode(key as CompressionMode)}
-                          className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                          style={{
-                            backgroundColor: config[key as keyof ModeConfiguration] 
-                              ? `${color}20` 
-                              : `${currentTheme.colors.border}20`,
-                            border: `1px solid ${config[key as keyof ModeConfiguration] ? color : currentTheme.colors.border}40`,
-                            color: currentTheme.colors.textPrimary
-                          }}
-                        >
-                          <div className="font-medium text-sm">{label}</div>
-                          <div 
-                            className="text-xs mt-1"
-                            style={{ color: currentTheme.colors.textSecondary }}
-                          >
-                            {description}
-                          </div>
-                        </button>
-                      ))}
+                        .map(({ key, label, description, color }) => {
+                          // Check PLC status directly for accurate compression mode selection
+                          const isSelected = plcStatus?.modes ? plcStatus.modes[key as keyof typeof plcStatus.modes] : false;
+                          
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => updateCompressionMode(key as CompressionMode)}
+                              className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                              style={{
+                                backgroundColor: isSelected 
+                                  ? `${color}20` 
+                                  : `${currentTheme.colors.border}20`,
+                                border: `1px solid ${isSelected ? color : currentTheme.colors.border}40`,
+                                color: currentTheme.colors.textPrimary
+                              }}
+                            >
+                              <div className="font-medium text-sm">{label}</div>
+                              <div 
+                                className="text-xs mt-1"
+                                style={{ color: currentTheme.colors.textSecondary }}
+                              >
+                                {description}
+                              </div>
+                            </button>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
@@ -736,10 +759,10 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         onClick={() => updateO2Delivery(true)}
                         className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
-                          backgroundColor: config.continuous_o2_flag 
+                          backgroundColor: plcStatus?.modes?.continuous_o2_flag 
                             ? `${currentTheme.colors.brand}20` 
                             : `${currentTheme.colors.border}20`,
-                          border: `1px solid ${config.continuous_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                          border: `1px solid ${plcStatus?.modes?.continuous_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
                           color: currentTheme.colors.textPrimary
                         }}
                       >
@@ -756,10 +779,10 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         onClick={() => updateO2Delivery(false)}
                         className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
-                          backgroundColor: config.intermittent_o2_flag 
+                          backgroundColor: plcStatus?.modes?.intermittent_o2_flag 
                             ? `${currentTheme.colors.brand}20` 
                             : `${currentTheme.colors.border}20`,
-                          border: `1px solid ${config.intermittent_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                          border: `1px solid ${plcStatus?.modes?.intermittent_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
                           color: currentTheme.colors.textPrimary
                         }}
                       >
@@ -796,7 +819,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                     <div className="space-y-4">
                                               <div className="flex items-center gap-4">
                           <button
-                            onClick={() => updateDuration((plcStatus?.modes?.custom_duration || config.set_duration) - 5)}
+                            onClick={() => updateDuration((plcStatus?.modes?.custom_duration ? plcStatus.modes.custom_duration : config.set_duration) - 5)}
                             className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
                             style={{ 
                               backgroundColor: `${currentTheme.colors.brand}20`,
@@ -812,7 +835,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                               className="text-3xl font-bold font-mono"
                               style={{ color: currentTheme.colors.textPrimary }}
                             >
-                              {plcStatus?.modes?.custom_duration || config.set_duration}
+                              {plcStatus?.modes?.custom_duration ? plcStatus.modes.custom_duration : config.set_duration}
                             </div>
                             <div 
                               className="text-sm"
@@ -823,7 +846,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                           </div>
                           
                           <button
-                            onClick={() => updateDuration((plcStatus?.modes?.custom_duration || config.set_duration) + 5)}
+                            onClick={() => updateDuration((plcStatus?.modes?.custom_duration ? plcStatus.modes.custom_duration : config.set_duration) + 5)}
                             className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
                             style={{ 
                               backgroundColor: `${currentTheme.colors.brand}20`,
@@ -841,7 +864,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                             min="60"
                             max="120"
                             step="5"
-                            value={plcStatus?.modes?.custom_duration || config.set_duration}
+                            value={plcStatus?.modes?.custom_duration ? plcStatus.modes.custom_duration : config.set_duration}
                             onChange={(e) => updateDuration(parseInt(e.target.value))}
                             className="w-full h-2 rounded-lg appearance-none cursor-pointer"
                             style={{ 
@@ -882,7 +905,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         className="text-3xl font-bold font-mono"
                         style={{ color: currentTheme.colors.textPrimary }}
                       >
-                        {plcStatus?.modes?.custom_duration || config.set_duration}
+                        {plcStatus?.modes?.custom_duration ? plcStatus.modes.custom_duration : config.set_duration}
                       </div>
                       <div 
                         className="text-sm"

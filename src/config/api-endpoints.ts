@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
     AC_TOGGLE: '/api/control/ac/toggle',
     CEILING_LIGHTS: '/api/control/lights/ceiling/toggle',
     READING_LIGHTS: '/api/control/lights/reading/toggle',
+    DOOR_LIGHTS: '/api/control/lights/door/toggle',
     INTERCOM: '/api/control/intercom/toggle',
     STATUS: '/api/control/status',
   },
@@ -137,6 +138,7 @@ export interface PLCStatus {
     system_shutdown: boolean;
     ceiling_lights_state: boolean;
     reading_lights_state: boolean;
+    door_lights_state: boolean;
     intercom_state: boolean;
   };
   
