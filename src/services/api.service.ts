@@ -541,10 +541,10 @@ class ApiService {
   // Password Authentication Methods
   async validatePassword(password: string): Promise<ApiResponse> {
     await this.waitForInitialization();
-    return this.makeRequest(API_ENDPOINTS.AUTH.STATUS, {
+    return this.makeRequest(API_ENDPOINTS.AUTH.INPUT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password })
+      body: JSON.stringify({ password: parseInt(password, 10) })
     });
   }
 
@@ -560,7 +560,7 @@ class ApiService {
     return this.makeRequest(API_ENDPOINTS.AUTH.PROCEED, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password })
+      body: JSON.stringify({ password: parseInt(password, 10) })
     });
   }
 
@@ -576,7 +576,10 @@ class ApiService {
     return this.makeRequest(API_ENDPOINTS.AUTH.INPUT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+      body: JSON.stringify({ 
+        old_password: parseInt(oldPassword, 10), 
+        new_password: parseInt(newPassword, 10) 
+      })
     });
   }
 
