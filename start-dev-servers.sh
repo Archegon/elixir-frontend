@@ -43,24 +43,65 @@ start_frontend() {
     npm run dev
 }
 
+# Function to find poetry executable
+find_poetry() {
+    # Try common locations for poetry
+    local poetry_paths=(
+        "poetry"                              # In PATH
+        "$HOME/.local/bin/poetry"             # User installation
+        "$HOME/.poetry/bin/poetry"            # Old Poetry installation
+        "/usr/local/bin/poetry"               # System installation
+        "$(which poetry 2>/dev/null)"         # Use which command
+    )
+    
+    for poetry_path in "${poetry_paths[@]}"; do
+        if [ -n "$poetry_path" ] && [ -x "$poetry_path" ] 2>/dev/null; then
+            echo "$poetry_path"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 # Function to start backend server
 start_backend() {
     echo "🔧 Starting Backend Server (FastAPI)..."
     cd "$BACKEND_DIR"
     
-    # Check if poetry is installed
-    if ! command -v poetry &> /dev/null; then
-        echo "❌ Poetry not found! Please install Poetry first."
-        echo "Visit: https://python-poetry.org/docs/#installation"
-        exit 1
+    # Find poetry executable
+    POETRY_CMD=$(find_poetry)
+    if [ $? -ne 0 ]; then
+        echo "❌ Poetry not found! Trying to locate..."
+        echo "🔍 Checking common locations..."
+        
+        # Additional debug info
+        echo "PATH: $PATH"
+        echo "User: $(whoami)"
+        echo "Home: $HOME"
+        
+        # Try to find it manually
+        if [ -f "$HOME/.local/bin/poetry" ]; then
+            POETRY_CMD="$HOME/.local/bin/poetry"
+            echo "✅ Found Poetry at: $POETRY_CMD"
+        elif [ -f "$HOME/.poetry/bin/poetry" ]; then
+            POETRY_CMD="$HOME/.poetry/bin/poetry"
+            echo "✅ Found Poetry at: $POETRY_CMD"
+        else
+            echo "❌ Poetry still not found! Please check your installation."
+            echo "Try running: curl -sSL https://install.python-poetry.org | python3 -"
+            exit 1
+        fi
     fi
+    
+    echo "✅ Using Poetry: $POETRY_CMD"
     
     # Install dependencies if needed
     echo "📦 Ensuring backend dependencies are installed..."
-    poetry install
+    "$POETRY_CMD" install
     
     echo "🚀 Backend server starting on http://localhost:8000"
-    poetry run python main.py
+    "$POETRY_CMD" run python main.py
 }
 
 # Function to cleanup when script is terminated
