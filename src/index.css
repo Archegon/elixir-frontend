@@ -57,4 +57,31 @@ input, textarea, [contenteditable="true"] {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/* Fix for scaled container scrolling */
+.scaled-container {
+  pointer-events: auto;
+}
+
+.scaled-container * {
+  pointer-events: auto;
+}
+
+/* Enable mouse wheel and touch scrolling specifically */
+.scroll-enabled {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  scroll-behavior: smooth !important;
+  overscroll-behavior-y: contain !important;
+}
+
+/* Force enable scrolling behavior for development content */
+.development-content {
+  will-change: scroll-position;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }

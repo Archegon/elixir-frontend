@@ -118,7 +118,7 @@ const Development: React.FC = () => {
 
   return (
     <div 
-      className="h-screen w-screen overflow-hidden flex"
+      className="h-screen w-screen overflow-hidden flex scaled-container"
       style={{ 
         backgroundColor: currentTheme.colors.primary,
         color: currentTheme.colors.textPrimary,
@@ -134,59 +134,72 @@ const Development: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-6 overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden">
         
-        {/* Page Header */}
-        <div className="mb-6">
-          <div className="flex items-center space-x-3">
-            <ElixirLogo size="lg" />
+        {/* Fixed Header Section */}
+        <div className="flex-shrink-0 p-6 pb-0">
+          {/* Page Header */}
+          <div className="mb-6">
+            <div className="flex items-center space-x-3">
+              <ElixirLogo size="lg" />
+            </div>
+            <div>
+              <p 
+                className="text-sm"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
+                Development Dashboard - Real-time PLC Monitoring
+              </p>
+            </div>
           </div>
-          <div>
-            <p 
-              className="text-sm"
-              style={{ color: currentTheme.colors.textSecondary }}
-            >
-              Development Dashboard - Real-time PLC Monitoring
-            </p>
+
+          {/* Connection Status */}
+          <div
+            className="rounded-xl p-4 mb-6 flex items-center justify-between"
+            style={{
+              backgroundColor: connectionStatus ? `${currentTheme.colors.success}15` : `${currentTheme.colors.danger}15`,
+              border: `1px solid ${connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger}30`
+            }}
+          >
+            <div className="flex items-center">
+              <div
+                className="w-3 h-3 rounded-full mr-3 animate-pulse"
+                style={{
+                  backgroundColor: connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger
+                }}
+              />
+              <span
+                className="font-medium"
+                style={{
+                  color: connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger
+                }}
+              >
+                {connectionStatus ? 'Connected to PLC' : 'Disconnected from PLC'}
+              </span>
+            </div>
+            {lastUpdated && (
+              <span
+                className="text-sm"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Connection Status */}
-        <div
-          className="rounded-xl p-4 mb-6 flex items-center justify-between"
+        {/* Scrollable Content Area */}
+        <div 
+          className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6 scroll-enabled development-content"
           style={{
-            backgroundColor: connectionStatus ? `${currentTheme.colors.success}15` : `${currentTheme.colors.danger}15`,
-            border: `1px solid ${connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger}30`
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            overscrollBehavior: 'contain',
+            scrollBehavior: 'smooth',
+            height: '100%',
+            minHeight: '0'
           }}
         >
-          <div className="flex items-center">
-            <div
-              className="w-3 h-3 rounded-full mr-3 animate-pulse"
-              style={{
-                backgroundColor: connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger
-              }}
-            />
-            <span
-              className="font-medium"
-              style={{
-                color: connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger
-              }}
-            >
-              {connectionStatus ? 'Connected to PLC' : 'Disconnected from PLC'}
-            </span>
-          </div>
-          {lastUpdated && (
-            <span
-              className="text-sm"
-              style={{ color: currentTheme.colors.textSecondary }}
-            >
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-
-        {/* PLC Data Content - Scrollable */}
-        <div className="flex-1 overflow-auto development-scroll">
           {plcData ? (
             <>
               {renderSection('Authentication', plcData.auth)}
@@ -201,6 +214,29 @@ const Development: React.FC = () => {
               {renderSection('Manual Controls', plcData.manual)}
               {renderSection('Timers', plcData.timers)}
               {renderSection('System', plcData.system)}
+              
+              {/* Test Content to Force Scrolling */}
+              <div
+                className="rounded-xl p-6 mb-6"
+                style={{
+                  backgroundColor: currentTheme.colors.primary,
+                  border: `1px solid ${currentTheme.colors.border}`,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)'
+                }}
+              >
+                <h3
+                  className="text-lg font-semibold mb-4"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  Scroll Test Area
+                </h3>
+                <div style={{ height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <p style={{ color: currentTheme.colors.textSecondary }}>
+                    This is a tall test area. If you can scroll to see this text clearly, scrolling is working!
+                  </p>
+                </div>
+              </div>
               
               {/* Raw JSON Data */}
               <div
@@ -219,11 +255,14 @@ const Development: React.FC = () => {
                   Raw JSON Data
                 </h3>
                 <pre
-                  className="text-xs overflow-auto max-h-96 p-4 rounded-lg touch-scroll"
+                  className="text-xs overflow-auto max-h-96 p-4 rounded-lg"
                   style={{
                     backgroundColor: currentTheme.colors.secondary,
                     color: currentTheme.colors.textSecondary,
-                    fontFamily: 'Monaco, Consolas, "Lucida Console", monospace'
+                    fontFamily: 'Monaco, Consolas, "Lucida Console", monospace',
+                    WebkitOverflowScrolling: 'touch',
+                    touchAction: 'auto',
+                    overscrollBehavior: 'contain'
                   }}
                 >
                   {JSON.stringify(plcData, null, 2)}
