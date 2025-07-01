@@ -477,12 +477,36 @@ class ApiService {
     });
   }
 
-  async setCustomDuration(duration: number): Promise<ApiResponse> {
-    // Duration is set along with the operating mode, so this method
-    // will be used in combination with setOperatingMode
+  async setDuration(duration: number): Promise<ApiResponse> {
+    // Use the modes endpoint to set duration while preserving the current mode
+    // This writes to the set_duration PLC address without changing the operating mode
     await this.waitForInitialization();
-    // For custom duration, we need to set custom mode with the duration
-    return this.setOperatingMode('custom', duration);
+    
+    // Get current mode from system status to preserve it
+    const currentStatus = this.getSystemStatus();
+    let currentMode = 'professional'; // default fallback
+    
+    if (currentStatus?.modes) {
+      const modes = currentStatus.modes;
+      if (modes.mode_rest) currentMode = 'rest';
+      else if (modes.mode_health) currentMode = 'health';
+      else if (modes.mode_professional) currentMode = 'professional';
+      else if (modes.mode_custom) currentMode = 'custom';
+      else if (modes.mode_o2_100) currentMode = 'o2_100';
+      else if (modes.mode_o2_120) currentMode = 'o2_120';
+    }
+    
+    const payload = { mode: currentMode, duration };
+    return this.makeRequest(API_ENDPOINTS.MODES.SET, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async setCustomDuration(duration: number): Promise<ApiResponse> {
+    // Legacy method - now uses the direct setDuration method
+    return this.setDuration(duration);
   }
 
   // Climate Control Methods

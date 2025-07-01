@@ -34,12 +34,23 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
   
   // Helper function to convert PLC status to ModeConfiguration
   const convertPlcStatusToConfig = useCallback((status: PLCStatus | null): ModeConfiguration => {
+    // Debug logging to see what we're actually getting
+    if (import.meta.env.MODE === 'development') {
+      console.log('🔧 ModeSelectionModal - Converting PLC status to config:', {
+        status,
+        modes: status?.modes,
+        hasStatus: !!status,
+        hasModes: !!status?.modes
+      });
+    }
+
     if (!status?.modes) {
-      // Default config if no status available
+      console.warn('⚠️ No PLC status or modes available, using defaults');
+      // Default config if no status available - but don't default to professional
       return {
         mode_rest: false,
         mode_health: false,
-        mode_professional: true,
+        mode_professional: false,
         mode_custom: false,
         mode_o2_100: false,
         mode_o2_120: false,
@@ -54,23 +65,36 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     }
 
     const modes = status.modes;
-    return {
-      // Treatment modes
-      mode_rest: modes.mode_rest || false,
-      mode_health: modes.mode_health || false,
-      mode_professional: modes.mode_professional || false,
-      mode_custom: modes.mode_custom || false,
-      mode_o2_100: modes.mode_o2_100 || false,
-      mode_o2_120: modes.mode_o2_120 || false,
+    
+    // Debug log the actual mode values
+    if (import.meta.env.MODE === 'development') {
+      console.log('🔧 ModeSelectionModal - Mode flags from PLC:', {
+        mode_rest: modes.mode_rest,
+        mode_health: modes.mode_health,
+        mode_professional: modes.mode_professional,
+        mode_custom: modes.mode_custom,
+        mode_o2_100: modes.mode_o2_100,
+        mode_o2_120: modes.mode_o2_120
+      });
+    }
+
+    const convertedConfig = {
+      // Treatment modes - use actual boolean values, not fallback to false
+      mode_rest: !!modes.mode_rest,
+      mode_health: !!modes.mode_health,
+      mode_professional: !!modes.mode_professional,
+      mode_custom: !!modes.mode_custom,
+      mode_o2_100: !!modes.mode_o2_100,
+      mode_o2_120: !!modes.mode_o2_120,
       
       // Compression modes
-      compression_beginner: modes.compression_beginner || false,
-      compression_normal: modes.compression_normal || false,
-      compression_fast: modes.compression_fast || false,
+      compression_beginner: !!modes.compression_beginner,
+      compression_normal: !!modes.compression_normal,
+      compression_fast: !!modes.compression_fast,
       
       // O2 delivery modes
-      continuous_o2_flag: modes.continuous_o2_flag || false,
-      intermittent_o2_flag: modes.intermittent_o2_flag || false,
+      continuous_o2_flag: !!modes.continuous_o2_flag,
+      intermittent_o2_flag: !!modes.intermittent_o2_flag,
       
       // Session duration (use default for now as PLC doesn't provide this)
       set_duration: 90,
@@ -79,6 +103,13 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
       pressure_set_point: status.pressure?.setpoint ? 
         ((status.pressure.setpoint + 100) / 100) : 2.4
     };
+
+    // Debug log the converted config
+    if (import.meta.env.MODE === 'development') {
+      console.log('🔧 ModeSelectionModal - Converted config:', convertedConfig);
+    }
+
+    return convertedConfig;
   }, []);
 
   const [config, setConfig] = useState<ModeConfiguration>(() => {
@@ -112,6 +143,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
       // Only sync config if we're not using an initialConfig override
       // This allows the modal to reflect real-time changes
       if (!initialConfig && isOpen) {
+        if (import.meta.env.MODE === 'development') {
+          console.log('🔧 ModeSelectionModal - Syncing config from status update');
+        }
         const newConfig = convertPlcStatusToConfig(newStatus);
         setConfig(newConfig);
       }
@@ -120,15 +154,26 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     // Subscribe to PLC status updates
     apiService.on('controls-update', handleStatusUpdate);
 
-    // Get initial status
-    const initialStatus = apiService.getSystemStatus();
-    if (initialStatus) {
-      setPlcStatus(initialStatus);
+    // Get initial status when modal opens
+    if (isOpen) {
+      const initialStatus = apiService.getSystemStatus();
+      if (import.meta.env.MODE === 'development') {
+        console.log('🔧 ModeSelectionModal - Modal opened, getting initial status:', initialStatus);
+      }
       
-      // Sync config with initial status when modal opens
-      if (!initialConfig && isOpen) {
-        const newConfig = convertPlcStatusToConfig(initialStatus);
-        setConfig(newConfig);
+      if (initialStatus) {
+        setPlcStatus(initialStatus);
+        
+        // Always sync config with initial status when modal opens (unless overridden)
+        if (!initialConfig) {
+          if (import.meta.env.MODE === 'development') {
+            console.log('🔧 ModeSelectionModal - Syncing config from initial status');
+          }
+          const newConfig = convertPlcStatusToConfig(initialStatus);
+          setConfig(newConfig);
+        }
+      } else {
+        console.warn('⚠️ No initial PLC status available when modal opened');
       }
     }
 
@@ -302,8 +347,8 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
         set_duration: clampedDuration
       }));
 
-      // Send command to PLC
-      await apiService.setCustomDuration(clampedDuration);
+      // Send command to PLC using the direct Set Duration endpoint
+      await apiService.setDuration(clampedDuration);
       
     } catch (error) {
       console.error('Failed to update session duration:', error);
