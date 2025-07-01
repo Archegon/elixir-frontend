@@ -66,13 +66,15 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
     // Use pressure values directly (backend already provides values in ATA)
     // This matches the behavior of PressureChart component
     const current = plcData.pressure.internal_pressure_1 || 0;
-    const target = plcData.pressure.setpoint || 0;
+    // Convert setpoint from backend units to ATA (setpoint uses different units than current pressure)
+    const target = plcData.pressure.setpoint ? plcData.pressure.setpoint * 0.11 : 0;
     
     // Debug logging for pressure values (development only)
-    if (import.meta.env.MODE === 'development' && (current > 0 || target > 0)) {
+    if (import.meta.env.MODE === 'development' && (current > 0 || plcData.pressure.setpoint > 0)) {
       console.log('🔧 Pressure Debug:', {
         current_pressure_ata: current,
-        target_pressure_ata: target
+        raw_setpoint: plcData.pressure.setpoint,
+        converted_target_ata: target
       });
     }
     const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
@@ -230,13 +232,13 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
               className="text-2xl font-bold"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              {pressureData.current.toFixed(1)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
+              {pressureData.current.toFixed(2)} <span className="text-sm font-medium" style={{ color: currentTheme.colors.textSecondary }}>ATA</span>
             </p>
             <p 
               className="text-xs"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Target: {pressureData.target.toFixed(1)} ATA
+              Target: {pressureData.target.toFixed(2)} ATA
             </p>
           </div>
           <div style={getProgressBarStyle(currentTheme, pressureData.percentage, 
