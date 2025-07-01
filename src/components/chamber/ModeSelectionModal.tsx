@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { ModeConfiguration, TreatmentMode, CompressionMode } from '../../types/chamber';
 import type { PLCStatus } from '../../config/api-endpoints';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -32,29 +32,61 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     minScale: 0.6
   });
   
-  const [config, setConfig] = useState<ModeConfiguration>(initialConfig || {
-    // Default to professional mode
-    mode_rest: false,
-    mode_health: false,
-    mode_professional: true,
-    mode_custom: false,
-    mode_o2_100: false,
-    mode_o2_120: false,
+  // Helper function to convert PLC status to ModeConfiguration
+  const convertPlcStatusToConfig = useCallback((status: PLCStatus | null): ModeConfiguration => {
+    if (!status?.modes) {
+      // Default config if no status available
+      return {
+        mode_rest: false,
+        mode_health: false,
+        mode_professional: true,
+        mode_custom: false,
+        mode_o2_100: false,
+        mode_o2_120: false,
+        compression_beginner: false,
+        compression_normal: true,
+        compression_fast: false,
+        continuous_o2_flag: true,
+        intermittent_o2_flag: false,
+        set_duration: 90,
+        pressure_set_point: 2.4
+      };
+    }
+
+    const modes = status.modes;
+    return {
+      // Treatment modes
+      mode_rest: modes.mode_rest || false,
+      mode_health: modes.mode_health || false,
+      mode_professional: modes.mode_professional || false,
+      mode_custom: modes.mode_custom || false,
+      mode_o2_100: modes.mode_o2_100 || false,
+      mode_o2_120: modes.mode_o2_120 || false,
+      
+      // Compression modes
+      compression_beginner: modes.compression_beginner || false,
+      compression_normal: modes.compression_normal || false,
+      compression_fast: modes.compression_fast || false,
+      
+      // O2 delivery modes
+      continuous_o2_flag: modes.continuous_o2_flag || false,
+      intermittent_o2_flag: modes.intermittent_o2_flag || false,
+      
+      // Session duration (use default for now as PLC doesn't provide this)
+      set_duration: 90,
+      
+      // Pressure setpoint - convert from raw PLC value (add 100 and divide by 100)
+      pressure_set_point: status.pressure?.setpoint ? 
+        ((status.pressure.setpoint + 100) / 100) : 2.4
+    };
+  }, []);
+
+  const [config, setConfig] = useState<ModeConfiguration>(() => {
+    // Initialize with initialConfig if provided, otherwise use PLC status or defaults
+    if (initialConfig) return initialConfig;
     
-    // Default to normal compression
-    compression_beginner: false,
-    compression_normal: true,
-    compression_fast: false,
-    
-    // Default to continuous O2
-    continuous_o2_flag: true,
-    intermittent_o2_flag: false,
-    
-    // Default 90 minute session
-    set_duration: 90,
-    
-    // Default 2.4 ATA pressure
-    pressure_set_point: 2.4
+    const initialStatus = apiService.getSystemStatus();
+    return convertPlcStatusToConfig(initialStatus);
   });
 
   useEffect(() => {
@@ -71,10 +103,18 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     }
   }, [isOpen, isVisible]);
 
-  // Listen for PLC status updates to get real pressure setpoint
+  // Listen for PLC status updates to sync with real-time mode and settings
   useEffect(() => {
     const handleStatusUpdate = (data: any) => {
-      setPlcStatus(data.wsStatus);
+      const newStatus = data.wsStatus;
+      setPlcStatus(newStatus);
+      
+      // Only sync config if we're not using an initialConfig override
+      // This allows the modal to reflect real-time changes
+      if (!initialConfig && isOpen) {
+        const newConfig = convertPlcStatusToConfig(newStatus);
+        setConfig(newConfig);
+      }
     };
 
     // Subscribe to PLC status updates
@@ -84,12 +124,18 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     const initialStatus = apiService.getSystemStatus();
     if (initialStatus) {
       setPlcStatus(initialStatus);
+      
+      // Sync config with initial status when modal opens
+      if (!initialConfig && isOpen) {
+        const newConfig = convertPlcStatusToConfig(initialStatus);
+        setConfig(newConfig);
+      }
     }
 
     return () => {
       apiService.off('controls-update', handleStatusUpdate);
     };
-  }, []);
+  }, [isOpen, initialConfig, convertPlcStatusToConfig]);
 
   const handleClose = () => {
     setIsAnimating(true);
