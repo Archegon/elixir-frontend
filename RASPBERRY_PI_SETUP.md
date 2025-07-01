@@ -5,8 +5,9 @@ This guide helps you set up one-click development server startup on your Raspber
 ## Files Created
 
 1. **`start-dev-servers.sh`** - Main script that starts both servers
-2. **`start-elixir-dev.desktop`** - Desktop shortcut file
-3. **`RASPBERRY_PI_SETUP.md`** - This instruction file
+2. **`launch-dev.sh`** - Simple launcher script for desktop integration
+3. **`start-elixir-dev.desktop`** - Desktop shortcut file
+4. **`RASPBERRY_PI_SETUP.md`** - This instruction file
 
 ## Setup Instructions
 
@@ -19,15 +20,17 @@ This guide helps you set up one-click development server startup on your Raspber
    ├── elixir-frontend/
    ├── elixir_backend/
    ├── start-dev-servers.sh          ← New file
+   ├── launch-dev.sh                 ← New file  
    ├── start-elixir-dev.desktop      ← New file
    └── RASPBERRY_PI_SETUP.md         ← New file
    ```
 
-### Step 2: Make Script Executable
+### Step 2: Make Scripts Executable
 
 Open terminal and run:
 ```bash
 chmod +x start-dev-servers.sh
+chmod +x launch-dev.sh
 chmod +x start-elixir-dev.desktop
 ```
 
@@ -35,17 +38,26 @@ chmod +x start-elixir-dev.desktop
 
 To create a desktop shortcut:
 
-1. Copy the `.desktop` file to your desktop:
+1. Copy **both launcher files** to your desktop:
    ```bash
+   cp start-dev-servers.sh ~/Desktop/
+   cp launch-dev.sh ~/Desktop/
    cp start-elixir-dev.desktop ~/Desktop/
    ```
 
-2. Make it executable:
+2. Make them executable:
    ```bash
+   chmod +x ~/Desktop/start-dev-servers.sh
+   chmod +x ~/Desktop/launch-dev.sh
    chmod +x ~/Desktop/start-elixir-dev.desktop
    ```
 
-3. Double-click the desktop icon to start both servers
+3. **Fix "Invalid Desktop File" Error:**
+   - Right-click the desktop icon → Properties
+   - Check "Allow executing file as program" 
+   - OR run: `gio set ~/Desktop/start-elixir-dev.desktop metadata::trusted true`
+
+4. Double-click the desktop icon to start both servers
 
 ### Step 4: Alternative - Direct Script Usage
 
@@ -89,14 +101,31 @@ chmod +x start-elixir-dev.desktop
 - **Node.js**: `sudo apt install nodejs npm`
 - **Poetry**: `curl -sSL https://install.python-poetry.org | python3 -`
 
+### "Invalid Desktop File" Error
+This is the most common issue. Try these solutions in order:
+
+1. **Mark as trusted:**
+   ```bash
+   gio set ~/Desktop/start-elixir-dev.desktop metadata::trusted true
+   ```
+
+2. **Right-click method:**
+   - Right-click the desktop icon
+   - Select "Properties" 
+   - Check "Allow executing file as program"
+
+3. **Alternative terminals** - Edit `start-elixir-dev.desktop` and try:
+   ```ini
+   # Try these different terminal commands:
+   Exec=x-terminal-emulator -e bash -c "cd ~/Desktop && ./launch-dev.sh; exec bash"
+   Exec=xterm -e bash -c "cd ~/Desktop && ./launch-dev.sh; exec bash"
+   Exec=gnome-terminal -- bash -c "cd ~/Desktop && ./launch-dev.sh; exec bash"
+   ```
+
 ### Terminal Not Opening (Desktop Version)
-Try changing the terminal command in `start-elixir-dev.desktop`:
-```ini
-# For different terminals, try one of these:
-Exec=lxterminal -e "cd %k && ./start-dev-servers.sh; exec bash"
-Exec=xterm -e "cd %k && ./start-dev-servers.sh; exec bash"
-Exec=terminator -e "cd %k && ./start-dev-servers.sh; exec bash"
-```
+If the desktop shortcut doesn't open a terminal:
+- Make sure `lxterminal` is installed: `sudo apt install lxterminal`
+- Try the alternative terminal commands above
 
 ## Stopping the Servers
 
