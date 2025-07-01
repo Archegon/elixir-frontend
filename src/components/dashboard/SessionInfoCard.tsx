@@ -161,6 +161,14 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     return { text: 'Awaiting Configuration', isPlaceholder: true };
   };
 
+  const getOperationStatus = (): { text: string; isActive: boolean } => {
+    if (!currentStatus) return { text: 'Unknown', isActive: false };
+    return {
+      text: currentStatus.session.running_state ? 'In Operation' : 'Standby',
+      isActive: currentStatus.session.running_state
+    };
+  };
+
   const calculateProgress = (): number => {
     if (!currentStatus) return 0;
     
@@ -330,6 +338,28 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
             }}
           >
             {o2DeliveryInfo.text}
+          </div>
+        </div>
+
+        <div>
+          <p 
+            className="text-xs font-medium mb-1"
+            style={{ color: currentTheme.colors.textSecondary }}
+          >
+            Operation Status
+          </p>
+          <div 
+            className="px-3 py-2 rounded-lg text-sm font-medium"
+            style={{ 
+              backgroundColor: getOperationStatus().isActive 
+                ? `${currentTheme.colors.brand}15`
+                : `${currentTheme.colors.textSecondary}10`,
+              color: getOperationStatus().isActive 
+                ? currentTheme.colors.brand
+                : currentTheme.colors.textSecondary
+            }}
+          >
+            {getOperationStatus().text}
           </div>
         </div>
       </div>
