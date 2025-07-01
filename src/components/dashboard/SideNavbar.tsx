@@ -1,30 +1,31 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { containerStyles, containerClasses, getStatusIndicatorStyle } from '../../utils/containerStyles';
-import { Palette, Home, Settings, BarChart3, Bell, ChevronLeft, ChevronRight, TestTube } from 'lucide-react';
+import { Palette, Home, Settings, BarChart3, Bell, ChevronLeft, ChevronRight, Code } from 'lucide-react';
 
 interface SideNavbarProps {
   onThemeModalOpen: () => void;
   onEnvControls?: () => void;
-  onMockControls?: () => void;
 }
 
-const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls, onMockControls }) => {
+const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls }) => {
   const { currentTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
-
-  // Check if mock mode is enabled
-  const isMockMode = import.meta.env.VITE_MOCK_MODE === 'true' ||
-                     import.meta.env.VITE_MOCK_PLC_DATA === 'true' ||
-                     import.meta.env.VITE_MOCK_API === 'true' ||
-                     import.meta.env.VITE_MOCK_WEBSOCKET === 'true';
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const navigationItems = [
-    { icon: Home, label: 'Dashboard', active: true },
-    { icon: BarChart3, label: 'Analytics', active: false },
-    { icon: Settings, label: 'Settings', active: false },
-    { icon: Bell, label: 'Alerts', active: false },
+    { icon: Home, label: 'Dashboard', path: '/', active: location.pathname === '/' },
+    { icon: Code, label: 'Development', path: '/development', active: location.pathname === '/development' },
+    { icon: BarChart3, label: 'Analytics', path: '/analytics', active: location.pathname === '/analytics' },
+    { icon: Settings, label: 'Settings', path: '/settings', active: location.pathname === '/settings' },
+    { icon: Bell, label: 'Alerts', path: '/alerts', active: location.pathname === '/alerts' },
   ];
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -76,6 +77,7 @@ const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls
           {navigationItems.map((item) => (
             <button
               key={item.label}
+              onClick={() => handleNavigation(item.path)}
               className="w-full flex items-center rounded-xl text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] min-w-0 h-12 px-4"
               style={{
                 backgroundColor: item.active ? `${currentTheme.colors.brand}20` : 'transparent',
@@ -205,31 +207,7 @@ const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls
           </button>
         )}
 
-        {/* Mock Controls Button - Only visible in mock mode */}
-        {isMockMode && onMockControls && (
-          <button
-            onClick={onMockControls}
-            className="w-full flex items-center rounded-lg text-xs font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] min-w-0 h-8 px-3"
-            style={{ 
-              backgroundColor: `${currentTheme.colors.warning}20`,
-              color: currentTheme.colors.warning,
-              border: `1px solid ${currentTheme.colors.warning}30`
-            }}
-            title={isCollapsed ? 'Mock Controls' : undefined}
-          >
-            <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-              <TestTube size={14} />
-            </div>
-            <span 
-              className={`ml-3 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}
-              style={{ 
-                transitionDelay: isCollapsed ? '0ms' : '150ms'
-              }}
-            >
-              Mock Controls
-            </span>
-          </button>
-        )}
+
 
         {/* Time Display */}
         <div 

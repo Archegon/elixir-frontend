@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 
+interface ScalingOptions {
+  baseWidth?: number;
+  baseHeight?: number;
+  minScale?: number;
+  maxScale?: number;
+}
+
 interface UseModalScalingOptions {
   isOpen: boolean;
   isVisible?: boolean;
@@ -9,6 +16,53 @@ interface UseModalScalingOptions {
   measurementDelay?: number; // Default 50ms delay for rendering
 }
 
+// Global scale factor that persists across page changes
+let globalScaleFactor = (() => {
+  if (typeof window === 'undefined') return 1;
+  
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const baseWidth = 1920;
+  const baseHeight = 1080;
+  const scaleX = viewportWidth / baseWidth;
+  const scaleY = viewportHeight / baseHeight;
+  const scale = Math.min(scaleX, scaleY);
+  return Math.max(0.4, Math.min(2.5, scale));
+})();
+
+// New general scaling hook for pages
+export const useScaling = (options: ScalingOptions = {}) => {
+  const {
+    baseWidth = 1920,
+    baseHeight = 1080,
+    minScale = 0.4,
+    maxScale = 2.5
+  } = options;
+
+  const [scaleFactor, setScaleFactor] = useState(globalScaleFactor);
+
+  useEffect(() => {
+    const calculateScale = () => {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      const scaleX = viewportWidth / baseWidth;
+      const scaleY = viewportHeight / baseHeight;
+      const scale = Math.min(scaleX, scaleY);
+      
+      const boundedScale = Math.max(minScale, Math.min(maxScale, scale));
+      globalScaleFactor = boundedScale; // Update global scale
+      setScaleFactor(boundedScale);
+    };
+
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, [baseWidth, baseHeight, minScale, maxScale]);
+
+  return scaleFactor;
+};
+
+// Original modal scaling hook for backward compatibility
 export const useModalScaling = (options: UseModalScalingOptions) => {
   const {
     isOpen,
@@ -81,7 +135,7 @@ export const useModalScaling = (options: UseModalScalingOptions) => {
       } else {
         // Immediate calculation succeeded, just add resize listener
         window.addEventListener('resize', calculateScale);
-        
+
         return () => {
           window.removeEventListener('resize', calculateScale);
         };

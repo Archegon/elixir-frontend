@@ -3,6 +3,7 @@ import type { EnvironmentalControls, ModeConfiguration } from '../types/chamber'
 import type { PLCStatus } from '../config/api-endpoints';
 import { FanMode } from '../types/chamber';
 import { useTheme } from '../contexts/ThemeContext';
+import { useScaling } from '../hooks/useModalScaling';
 import EnvironmentalControlsModal from '../components/chamber/EnvironmentalControlsModal';
 import ModeSelectionModal from '../components/chamber/ModeSelectionModal';
 import ThemeSelectorModal from '../components/ui/ThemeSelectorModal';
@@ -13,16 +14,16 @@ import EnvironmentalReadingsCard from '../components/dashboard/EnvironmentalRead
 import SessionInfoCard from '../components/dashboard/SessionInfoCard';
 import AlertsCard from '../components/dashboard/AlertsCard';
 import ElixirLogo from '../components/ui/ElixirLogo';
-import { MockControls } from '../components/MockControls';
+
 import apiService from '../services/api.service';
 
 const Dashboard: React.FC = () => {
   const { currentTheme } = useTheme();
-  const [scaleFactor, setScaleFactor] = useState(1);
+  const scaleFactor = useScaling();
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const [isMockControlsVisible, setIsMockControlsVisible] = useState(false);
+
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [plcStatus, setPLCStatus] = useState<PLCStatus | null>(null);
   const [environmentalControls, setEnvironmentalControls] = useState<EnvironmentalControls>({
@@ -59,31 +60,7 @@ const Dashboard: React.FC = () => {
     pressure_set_point: 2.4
   });
 
-  // Calculate scale factor based on viewport size
-  useEffect(() => {
-    const calculateScale = () => {
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      
-      // Base dimensions (reference size for scaling)
-      const baseWidth = 1920;
-      const baseHeight = 1080;
-      
-      // Calculate scale based on what fits (ensure it always fits)
-      const scaleX = viewportWidth / baseWidth;
-      const scaleY = viewportHeight / baseHeight;
-      const scale = Math.min(scaleX, scaleY); // Use minimum to ensure it fits
-      
-      // Limit scale factor to reasonable bounds
-      const boundedScale = Math.max(0.4, Math.min(2.5, scale));
-      
-      setScaleFactor(boundedScale);
-    };
 
-    calculateScale();
-    window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, []);
 
   // Monitor PLC status for show_password bit
   useEffect(() => {
@@ -150,7 +127,7 @@ const Dashboard: React.FC = () => {
       <SideNavbar 
         onThemeModalOpen={() => !isPasswordModalOpen && setIsThemeModalOpen(true)} 
         onEnvControls={() => !isPasswordModalOpen && setIsEnvModalOpen(true)}
-        onMockControls={() => !isPasswordModalOpen && setIsMockControlsVisible(!isMockControlsVisible)}
+
       />
 
       {/* Main Content */}
@@ -229,11 +206,8 @@ const Dashboard: React.FC = () => {
         onChangePassword={handlePasswordChange}
       />
 
-      {/* Mock Controls - Only visible in mock mode */}
-      <MockControls 
-        visible={isMockControlsVisible && !isPasswordModalOpen}
-        onToggle={() => setIsMockControlsVisible(!isMockControlsVisible)}
-      />
+
+      
 
       {/* Overlay when password modal is active */}
       {isPasswordModalOpen && (

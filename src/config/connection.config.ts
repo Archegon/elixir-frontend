@@ -44,14 +44,18 @@ export const DISCOVERY_CONFIG = {
     // Maximum concurrent scans to avoid overwhelming the network
     MAX_CONCURRENT: getEnvNumber('VITE_MAX_CONCURRENT_SCANS', 20),
     
-    // Common subnets to scan (in addition to detected local subnet)
+    // Common subnets to scan (only 192.168.x.x private networks)
     COMMON_SUBNETS: [
       '192.168.1',
       '192.168.0', 
       '192.168.2',
-      '10.0.0',
-      '10.0.1',
-      '172.16.0',
+      '192.168.3',
+      '192.168.4',
+      '192.168.5',
+      '192.168.10',
+      '192.168.11',
+      '192.168.20',
+      '192.168.100',
     ],
     
     // Skip scanning entire range if true (use only common IPs)
@@ -97,20 +101,6 @@ class BackendDiscovery {
   }
 
   async discoverBackend(): Promise<{ apiUrl: string; wsUrl: string }> {
-    // Check if mock mode is enabled - skip discovery entirely
-    const isMockMode = getEnvBoolean('VITE_MOCK_MODE', false) || 
-                       getEnvBoolean('VITE_MOCK_API', false) || 
-                       getEnvBoolean('VITE_MOCK_PLC_DATA', false);
-    
-    if (isMockMode) {
-      console.log('🎭 Mock mode enabled - skipping backend discovery');
-      const mockUrl = 'http://localhost:3000'; // Mock URL for development
-      return { 
-        apiUrl: mockUrl, 
-        wsUrl: mockUrl.replace('http', 'ws') 
-      };
-    }
-
     if (this.discoveredBaseUrl && this.discoveredWsUrl) {
       return { 
         apiUrl: this.discoveredBaseUrl, 
@@ -213,10 +203,11 @@ class BackendDiscovery {
       if (localIp) {
         urls.push(`http://${localIp}:${port}`);
         
-        // Add the detected subnet to common subnets
+        // Add the detected subnet to common subnets (only if it's a 192.168.x.x range)
         const detectedSubnet = localIp.split('.').slice(0, 3).join('.');
-        if (!DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS.includes(detectedSubnet)) {
+        if (detectedSubnet.startsWith('192.168.') && !DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS.includes(detectedSubnet)) {
           DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS.unshift(detectedSubnet);
+          console.log(`🔍 Added detected 192.168.x.x subnet: ${detectedSubnet}`);
         }
       }
     } catch (error) {
@@ -244,11 +235,19 @@ class BackendDiscovery {
     const port = DISCOVERY_CONFIG.BACKEND_PORT;
     const urls: string[] = [];
 
-    // Generate IPs for each common subnet
-    for (const subnet of DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS) {
+    // Generate IPs for each common subnet (filter to only 192.168.x.x ranges)
+    const filtered192Subnets = DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS.filter(subnet => 
+      subnet.startsWith('192.168.')
+    );
+    
+    for (const subnet of filtered192Subnets) {
       for (let i = DISCOVERY_CONFIG.SCAN_RANGE.START; i <= DISCOVERY_CONFIG.SCAN_RANGE.END; i++) {
         urls.push(`http://${subnet}.${i}:${port}`);
       }
+    }
+
+    if (filtered192Subnets.length > 0) {
+      console.log(`🔍 Scanning ${filtered192Subnets.length} 192.168.x.x subnets for backend discovery`);
     }
 
     return urls;
@@ -259,7 +258,12 @@ class BackendDiscovery {
     const urls: string[] = [];
     const commonLastOctets = [1, 2, 10, 20, 50, 100, 101, 110, 150, 200, 254];
 
-    for (const subnet of DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS) {
+    // Filter to only 192.168.x.x subnets for quick scan
+    const filtered192Subnets = DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS.filter(subnet => 
+      subnet.startsWith('192.168.')
+    );
+
+    for (const subnet of filtered192Subnets) {
       for (const lastOctet of commonLastOctets) {
         urls.push(`http://${subnet}.${lastOctet}:${port}`);
       }
@@ -526,8 +530,7 @@ export const CONNECTION_CONFIG = {
   // Development Settings
   DEV: {
     DEBUG: getEnvBoolean('VITE_DEBUG_MODE', isDevelopment),
-    MOCK_PLC_DATA: getEnvBoolean('VITE_MOCK_PLC_DATA', false),
-    MOCK_WEBSOCKET: getEnvBoolean('VITE_MOCK_WEBSOCKET', false),
+    
     CONSOLE_LOGGING: getEnvBoolean('VITE_CONSOLE_LOGGING', isDevelopment),
   },
 };
