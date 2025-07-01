@@ -96,8 +96,8 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
       continuous_o2_flag: !!modes.continuous_o2_flag,
       intermittent_o2_flag: !!modes.intermittent_o2_flag,
       
-      // Session duration (use default for now as PLC doesn't provide this)
-      set_duration: 90,
+      // Session duration - read from PLC status
+      set_duration: status.modes?.custom_duration || 90,
       
       // Pressure setpoint - convert from raw PLC value (add 100 and divide by 100)
       pressure_set_point: status.pressure?.setpoint ? 
@@ -107,6 +107,11 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     // Debug log the converted config
     if (import.meta.env.MODE === 'development') {
       console.log('🔧 ModeSelectionModal - Converted config:', convertedConfig);
+      console.log('🔧 ModeSelectionModal - Duration from PLC:', {
+        plc_custom_duration: status.modes?.custom_duration,
+        converted_set_duration: convertedConfig.set_duration,
+        using_plc_value: !!status.modes?.custom_duration
+      });
     }
 
     return convertedConfig;
@@ -340,6 +345,16 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
   const updateDuration = async (duration: number) => {
     try {
       const clampedDuration = Math.min(120, Math.max(60, duration));
+      
+      // Debug logging for duration updates
+      if (import.meta.env.MODE === 'development') {
+        console.log('🔧 ModeSelectionModal - Updating duration:', {
+          requested_duration: duration,
+          clamped_duration: clampedDuration,
+          current_plc_duration: plcStatus?.modes?.custom_duration,
+          current_config_duration: config.set_duration
+        });
+      }
       
       // Update local config for immediate UI feedback
       setConfig(prev => ({
@@ -779,69 +794,69 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                     </div>
                     
                     <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <button
-                          onClick={() => updateDuration(config.set_duration - 5)}
-                          className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-                          style={{ 
-                            backgroundColor: `${currentTheme.colors.brand}20`,
-                            border: `1px solid ${currentTheme.colors.brand}40`,
-                            color: currentTheme.colors.brand
-                          }}
-                        >
-                          -5
-                        </button>
-                        
-                        <div className="flex-1 text-center">
-                          <div 
-                            className="text-3xl font-bold font-mono"
-                            style={{ color: currentTheme.colors.textPrimary }}
+                                              <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => updateDuration((plcStatus?.modes?.custom_duration || config.set_duration) - 5)}
+                            className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+                            style={{ 
+                              backgroundColor: `${currentTheme.colors.brand}20`,
+                              border: `1px solid ${currentTheme.colors.brand}40`,
+                              color: currentTheme.colors.brand
+                            }}
                           >
-                            {config.set_duration}
+                            -5
+                          </button>
+                          
+                          <div className="flex-1 text-center">
+                            <div 
+                              className="text-3xl font-bold font-mono"
+                              style={{ color: currentTheme.colors.textPrimary }}
+                            >
+                              {plcStatus?.modes?.custom_duration || config.set_duration}
+                            </div>
+                            <div 
+                              className="text-sm"
+                              style={{ color: currentTheme.colors.textSecondary }}
+                            >
+                              minutes
+                            </div>
                           </div>
+                          
+                          <button
+                            onClick={() => updateDuration((plcStatus?.modes?.custom_duration || config.set_duration) + 5)}
+                            className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+                            style={{ 
+                              backgroundColor: `${currentTheme.colors.brand}20`,
+                              border: `1px solid ${currentTheme.colors.brand}40`,
+                              color: currentTheme.colors.brand
+                            }}
+                          >
+                            +5
+                          </button>
+                        </div>
+                        
+                        <div>
+                          <input
+                            type="range"
+                            min="60"
+                            max="120"
+                            step="5"
+                            value={plcStatus?.modes?.custom_duration || config.set_duration}
+                            onChange={(e) => updateDuration(parseInt(e.target.value))}
+                            className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                            style={{ 
+                              backgroundColor: currentTheme.colors.border,
+                              outline: 'none'
+                            }}
+                          />
                           <div 
-                            className="text-sm"
+                            className="flex justify-between text-xs mt-2"
                             style={{ color: currentTheme.colors.textSecondary }}
                           >
-                            minutes
+                            <span>60 min</span>
+                            <span>120 min</span>
                           </div>
                         </div>
-                        
-                        <button
-                          onClick={() => updateDuration(config.set_duration + 5)}
-                          className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-                          style={{ 
-                            backgroundColor: `${currentTheme.colors.brand}20`,
-                            border: `1px solid ${currentTheme.colors.brand}40`,
-                            color: currentTheme.colors.brand
-                          }}
-                        >
-                          +5
-                        </button>
-                      </div>
-                      
-                      <div>
-                        <input
-                          type="range"
-                          min="60"
-                          max="120"
-                          step="5"
-                          value={config.set_duration}
-                          onChange={(e) => updateDuration(parseInt(e.target.value))}
-                          className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                          style={{ 
-                            backgroundColor: currentTheme.colors.border,
-                            outline: 'none'
-                          }}
-                        />
-                        <div 
-                          className="flex justify-between text-xs mt-2"
-                          style={{ color: currentTheme.colors.textSecondary }}
-                        >
-                          <span>60 min</span>
-                          <span>120 min</span>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 ) : (
@@ -867,7 +882,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         className="text-3xl font-bold font-mono"
                         style={{ color: currentTheme.colors.textPrimary }}
                       >
-                        {config.set_duration}
+                        {plcStatus?.modes?.custom_duration || config.set_duration}
                       </div>
                       <div 
                         className="text-sm"

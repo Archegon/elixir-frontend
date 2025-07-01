@@ -69,6 +69,16 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatRemainingTime = (): string => {
+    if (!currentStatus) return '--:--';
+    
+    const minutes = currentStatus.timers.run_time_remaining_min;
+    const seconds = currentStatus.timers.run_time_remaining_sec;
+    
+    // Format MM:SS where MM is the minutes value and SS is the seconds value
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   const getSessionStatus = (): { status: string; variant: 'success' | 'warning' | 'info' | 'danger' } => {
     if (!isConnected) return { status: 'Disconnected', variant: 'danger' };
     if (!currentStatus) return { status: 'No Data', variant: 'warning' };
@@ -246,13 +256,13 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
           className="text-3xl font-bold font-mono mb-1"
           style={{ color: currentTheme.colors.textPrimary }}
         >
-          {currentStatus ? formatTime(currentStatus.timers.session_elapsed_time) : '--:--'}
+          {formatRemainingTime()}
         </p>
         <p 
           className="text-sm font-medium"
           style={{ color: currentTheme.colors.textSecondary }}
         >
-          Remaining: {currentStatus ? formatTime(currentStatus.timers.run_time_remaining_sec) : '--:--'}
+          Elapsed: {currentStatus ? formatTime(currentStatus.timers.session_elapsed_time) : '--:--'}
         </p>
       </div>
 
