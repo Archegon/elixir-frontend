@@ -93,12 +93,12 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     if (!currentStatus) return 'Unknown';
     // Check which operating mode flag is active (mutually exclusive)
     const modes = currentStatus.modes;
-    if (modes.mode_rest) return 'Rest Mode';
-    if (modes.mode_health) return 'Health Mode';
-    if (modes.mode_professional) return 'Professional Mode';
-    if (modes.mode_custom) return 'Custom Mode';
-    if (modes.mode_o2_100) return 'O2 100%';
-    if (modes.mode_o2_120) return 'O2 120%';
+    if (modes.mode_rest) return 'Rest & Relax';
+    if (modes.mode_health) return 'Health & Wellness';
+    if (modes.mode_professional) return 'Professional Recovery';
+    if (modes.mode_custom) return 'Customise';
+    if (modes.mode_o2_100) return 'O2genes 100 Mins';
+    if (modes.mode_o2_120) return 'O2genes 120 Mins';
     return 'Unknown Mode';
   };
 
