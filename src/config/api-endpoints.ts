@@ -123,6 +123,9 @@ export interface PLCStatus {
   
   auth: {
     show_password_screen: boolean;
+    proceed_password: boolean;
+    back_password: boolean;
+    password_input: number;
     proceed_status: boolean;
     change_password_status: boolean;
     admin_password: number;

@@ -33,7 +33,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     const handleStatusUpdate = (status: PLCStatus) => {
       setPLCStatus(status);
       // Complete validation when PLC responds after validation request
-      if (awaitingPLCResponse && currentField === 'password' && password.length === 4) {
+      if (awaitingPLCResponse && currentField === 'password' && password.length === 3) {
         setIsValidating(false);
         setAwaitingPLCResponse(false);
       }
@@ -51,9 +51,9 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     };
   }, [awaitingPLCResponse, currentField, password]);
 
-  // Validate PIN with backend when 4 digits are entered
+  // Validate PIN with backend when 3 digits are entered
   useEffect(() => {
-    if (currentField === 'password' && password.length === 4) {
+    if (currentField === 'password' && password.length === 3) {
       validatePinWithBackend(password);
     }
   }, [password, currentField]);
@@ -115,16 +115,16 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
   };
 
   const handleChangePassword = () => {
-    if (password.length !== 4) {
-      setError('Please enter your current 4-digit PIN');
+    if (password.length !== 3) {
+      setError('Please enter your current 3-digit PIN');
       return;
     }
-    if (newPassword.length !== 4) {
-      setError('Please enter a new 4-digit PIN');
+    if (newPassword.length !== 3) {
+      setError('Please enter a new 3-digit PIN');
       return;
     }
-    if (confirmNewPassword.length !== 4) {
-      setError('Please confirm your new 4-digit PIN');
+    if (confirmNewPassword.length !== 3) {
+      setError('Please confirm your new 3-digit PIN');
       return;
     }
     if (newPassword !== confirmNewPassword) {
@@ -155,17 +155,17 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     
     switch (currentField) {
       case 'password':
-        if (password.length < 4) {
+        if (password.length < 3) {
           setPassword(prev => prev + digit);
         }
         break;
       case 'newPassword':
-        if (newPassword.length < 4) {
+        if (newPassword.length < 3) {
           setNewPassword(prev => prev + digit);
         }
         break;
       case 'confirmNewPassword':
-        if (confirmNewPassword.length < 4) {
+        if (confirmNewPassword.length < 3) {
           setConfirmNewPassword(prev => prev + digit);
         }
         break;
@@ -220,7 +220,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
   };
 
   const getCurrentFieldLabel = () => {
-    if (!isChangingPassword) return 'Enter 4-Digit PIN';
+    if (!isChangingPassword) return 'Enter 3-Digit PIN';
     
     switch (currentField) {
       case 'password':
@@ -237,7 +237,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
   const getPasswordDisplayText = () => {
     const value = getCurrentFieldValue();
     const dots = '●'.repeat(value.length);
-    const remaining = 4 - value.length;
+    const remaining = 3 - value.length;
     const placeholders = '○'.repeat(remaining);
     return dots + placeholders;
   };
@@ -250,19 +250,19 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
 
     switch (currentField) {
       case 'password':
-        if (password.length === 4) {
+        if (password.length === 3) {
           setCurrentField('newPassword');
           setError('');
         } else {
-          setError('Please enter your current 4-digit PIN');
+          setError('Please enter your current 3-digit PIN');
         }
         break;
       case 'newPassword':
-        if (newPassword.length === 4) {
+        if (newPassword.length === 3) {
           setCurrentField('confirmNewPassword');
           setError('');
         } else {
-          setError('Please enter a new 4-digit PIN');
+          setError('Please enter a new 3-digit PIN');
         }
         break;
       case 'confirmNewPassword':
@@ -277,17 +277,17 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
     
     if (!isChangingPassword) {
       // Main proceed button: enabled if PLC proceed_status is true
-      return password.length === 4 && plcStatus.auth.proceed_status;
+      return password.length === 3 && plcStatus.auth.proceed_status;
     }
     
     // Password change flow
     switch (currentField) {
       case 'password':
-        return password.length === 4;
+        return password.length === 3;
       case 'newPassword':
-        return newPassword.length === 4;
+        return newPassword.length === 3;
       case 'confirmNewPassword':
-        return confirmNewPassword.length === 4 && newPassword === confirmNewPassword;
+        return confirmNewPassword.length === 3 && newPassword === confirmNewPassword;
       default:
         return false;
     }
@@ -296,7 +296,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
   const canChangePassword = () => {
     if (!plcStatus) return false;
     // Change password button: enabled if PLC change_password_status is true (admin access)
-    return password.length === 4 && plcStatus.auth.change_password_status;
+    return password.length === 3 && plcStatus.auth.change_password_status;
   };
 
   const getFieldStatusColor = () => {
@@ -304,7 +304,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
       return currentTheme.colors.border;
     }
     
-    if (password.length !== 4) {
+    if (password.length !== 3) {
       return currentTheme.colors.border;
     }
     
@@ -322,7 +322,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
   };
 
   const getPinValidationStatus = () => {
-    if (currentField !== 'password' || isChangingPassword || password.length !== 4) {
+    if (currentField !== 'password' || isChangingPassword || password.length !== 3) {
       return null;
     }
     
@@ -357,7 +357,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
       isOpen={isOpen}
       onClose={handleCancel}
       title="PIN Required"
-      subtitle={isChangingPassword ? "Change your PIN" : "Enter 4-digit PIN to continue"}
+      subtitle={isChangingPassword ? "Change your PIN" : "Enter 3-digit PIN to continue"}
       width="w-[600px]"
       height="h-[800px]"
     >
@@ -377,7 +377,7 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
             {getCurrentFieldLabel()}
           </label>
           
-          {/* PIN Display with 4-digit layout */}
+          {/* PIN Display with 3-digit layout */}
           <div 
             className="mx-auto w-80 h-16 flex items-center justify-center rounded-lg border-2 text-4xl font-mono tracking-wider"
             style={{
