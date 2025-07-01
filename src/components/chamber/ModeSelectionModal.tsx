@@ -552,7 +552,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                               className="text-3xl font-bold font-mono"
                               style={{ color: currentTheme.colors.textPrimary }}
                             >
-                              {plcStatus?.pressure?.setpoint ? (plcStatus.pressure.setpoint * 0.11).toFixed(2) : config.pressure_set_point.toFixed(2)}
+                              {plcStatus?.pressure?.setpoint ? ((plcStatus.pressure.setpoint + 100) / 100).toFixed(2) : config.pressure_set_point.toFixed(2)}
                             </div>
                             <div 
                               className="text-sm"
@@ -581,7 +581,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                             min={getPressureLimits().min}
                             max={getPressureLimits().max}
                             step="0.01"
-                            value={plcStatus?.pressure?.setpoint ? plcStatus.pressure.setpoint * 0.11 : config.pressure_set_point}
+                            value={plcStatus?.pressure?.setpoint ? (plcStatus.pressure.setpoint + 100) / 100 : config.pressure_set_point}
                             disabled={true}
                             className="w-full h-2 rounded-lg appearance-none cursor-not-allowed opacity-60"
                             style={{ 

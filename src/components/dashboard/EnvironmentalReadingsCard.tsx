@@ -67,14 +67,15 @@ const EnvironmentalReadingsCard: React.FC<EnvironmentalReadingsCardProps> = ({ o
     // This matches the behavior of PressureChart component
     const current = plcData.pressure.internal_pressure_1 || 0;
     // Convert setpoint from backend units to ATA (setpoint uses different units than current pressure)
-    const target = plcData.pressure.setpoint ? plcData.pressure.setpoint * 0.11 : 0;
+    const target = plcData.pressure.setpoint ? (plcData.pressure.setpoint + 100) / 100 : 0;
     
     // Debug logging for pressure values (development only)
     if (import.meta.env.MODE === 'development' && (current > 0 || plcData.pressure.setpoint > 0)) {
       console.log('🔧 Pressure Debug:', {
         current_pressure_ata: current,
         raw_setpoint: plcData.pressure.setpoint,
-        converted_target_ata: target
+        converted_target_ata: target,
+        conversion_formula: '(raw + 100) / 100'
       });
     }
     const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
