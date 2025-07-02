@@ -197,6 +197,10 @@ export interface PLCStatus {
     // Oxygen delivery modes (mutually exclusive)
     continuous_o2_flag: boolean;
     intermittent_o2_flag: boolean;
+    
+    // Oxygen delivery selections
+    continuous_o2_selection: boolean;
+    intermittent_o2_selection: boolean;
   };
   
   climate: {

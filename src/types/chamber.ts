@@ -158,6 +158,10 @@ export interface ModeConfiguration {
   continuous_o2_flag: boolean;
   intermittent_o2_flag: boolean;
   
+  // O2 delivery selections
+  continuous_o2_selection: boolean;
+  intermittent_o2_selection: boolean;
+  
   // Session duration (60-120 minutes)
   set_duration: number;
   

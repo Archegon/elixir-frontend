@@ -190,7 +190,6 @@ const Dashboard: React.FC = () => {
         isOpen={isModeModalOpen && !isPasswordModalOpen}
         onClose={() => setIsModeModalOpen(false)}
         initialConfig={modeConfiguration}
-        onUpdateConfig={setModeConfiguration}
       />
 
       <ThemeSelectorModal

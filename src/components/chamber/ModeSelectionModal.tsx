@@ -11,7 +11,7 @@ interface ModeSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialConfig?: ModeConfiguration;
-  onUpdateConfig?: (config: ModeConfiguration) => void;
+  onUpdateConfig?: (config: ModeConfiguration) => void; // Optional for backward compatibility
 }
 
 const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
@@ -59,6 +59,8 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
         compression_fast: false,
         continuous_o2_flag: true,
         intermittent_o2_flag: false,
+        continuous_o2_selection: true,
+        intermittent_o2_selection: false,
         set_duration: 90,
         pressure_set_point: 2.4
       };
@@ -95,6 +97,10 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
       // O2 delivery modes
       continuous_o2_flag: !!modes.continuous_o2_flag,
       intermittent_o2_flag: !!modes.intermittent_o2_flag,
+      
+      // O2 delivery selections
+      continuous_o2_selection: !!modes.continuous_o2_selection,
+      intermittent_o2_selection: !!modes.intermittent_o2_selection,
       
       // Session duration - read from PLC status
       set_duration: status.modes?.custom_duration || 90,
@@ -206,9 +212,20 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
   if (!isVisible) return null;
 
-  const handleSave = () => {
-    onUpdateConfig?.(config);
-    handleClose();
+  const handleSave = async () => {
+    try {
+      // Start the session with current configuration
+      const response = await apiService.startSession();
+      if (!response.success) {
+        console.error('Failed to start session:', response.message);
+        // Could add toast notification here
+      } else {
+        // Close modal on successful session start
+        handleClose();
+      }
+    } catch (error) {
+      console.error('Error starting session:', error);
+    }
   };
 
   const handleCancel = () => {
@@ -773,10 +790,10 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         onClick={() => updateO2Delivery(true)}
                         className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
-                          backgroundColor: plcStatus?.modes?.continuous_o2_flag 
+                          backgroundColor: plcStatus?.modes?.continuous_o2_selection 
                             ? `${currentTheme.colors.brand}20` 
                             : `${currentTheme.colors.border}20`,
-                          border: `1px solid ${plcStatus?.modes?.continuous_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                          border: `1px solid ${plcStatus?.modes?.continuous_o2_selection ? currentTheme.colors.brand : currentTheme.colors.border}40`,
                           color: currentTheme.colors.textPrimary
                         }}
                       >
@@ -793,10 +810,10 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         onClick={() => updateO2Delivery(false)}
                         className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
-                          backgroundColor: plcStatus?.modes?.intermittent_o2_flag 
+                          backgroundColor: plcStatus?.modes?.intermittent_o2_selection 
                             ? `${currentTheme.colors.brand}20` 
                             : `${currentTheme.colors.border}20`,
-                          border: `1px solid ${plcStatus?.modes?.intermittent_o2_flag ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                          border: `1px solid ${plcStatus?.modes?.intermittent_o2_selection ? currentTheme.colors.brand : currentTheme.colors.border}40`,
                           color: currentTheme.colors.textPrimary
                         }}
                       >
@@ -959,12 +976,12 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
               onClick={handleSave}
               className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               style={{
-                backgroundColor: currentTheme.colors.brand,
-                border: `1px solid ${currentTheme.colors.brand}`,
+                backgroundColor: currentTheme.colors.success,
+                border: `1px solid ${currentTheme.colors.success}`,
                 color: '#ffffff'
               }}
             >
-              Apply Configuration
+              Start Session
             </button>
           </div>
         </div>
