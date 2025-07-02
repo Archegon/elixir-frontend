@@ -89,15 +89,20 @@ const Development: React.FC = () => {
     // Discovery event listeners
     const handleDiscoveryStart = (data?: any) => {
       console.log('🎯 Development: Discovery start received:', data);
-      setDiscoveryInfo(prev => ({ 
-        ...prev, 
-        isDiscovering: true, 
-        progress: 0,
-        startTime: new Date(),
-        connectionAttempts: prev.connectionAttempts + 1,
-        lastAttemptTime: new Date(),
-        discoveryMethod: data?.method || 'scan'
-      }));
+      console.log('🎯 Current discoveryInfo state:', discoveryInfo);
+      setDiscoveryInfo(prev => {
+        const newState = { 
+          ...prev, 
+          isDiscovering: true, 
+          progress: 0,
+          startTime: new Date(),
+          connectionAttempts: prev.connectionAttempts + 1,
+          lastAttemptTime: new Date(),
+          discoveryMethod: data?.method || 'scan'
+        };
+        console.log('🎯 New discoveryInfo state:', newState);
+        return newState;
+      });
     };
 
     const handleDiscoveryComplete = (data: { apiUrl: string; wsUrl: string }) => {
@@ -113,16 +118,21 @@ const Development: React.FC = () => {
 
     const handleDiscoveryProgress = (data: { currentIP: string; testedIPs: string[]; totalIPs: number; subnet?: string }) => {
       console.log('🎯 Development: Discovery progress received:', data);
+      console.log('🎯 Current discoveryInfo state:', discoveryInfo);
       const progress = (data.testedIPs.length / data.totalIPs) * 100;
-      setDiscoveryInfo(prev => ({ 
-        ...prev, 
-        currentIP: data.currentIP,
-        testedIPs: data.testedIPs,
-        totalIPs: data.totalIPs,
-        progress,
-        currentSubnet: data.subnet,
-        elapsedTime: prev.startTime ? Date.now() - prev.startTime.getTime() : undefined
-      }));
+      setDiscoveryInfo(prev => {
+        const newState = { 
+          ...prev, 
+          currentIP: data.currentIP,
+          testedIPs: data.testedIPs,
+          totalIPs: data.totalIPs,
+          progress,
+          currentSubnet: data.subnet,
+          elapsedTime: prev.startTime ? Date.now() - prev.startTime.getTime() : undefined
+        };
+        console.log('🎯 New discoveryInfo state:', newState);
+        return newState;
+      });
     };
 
     const handleDiscoveryFailed = () => {
@@ -184,6 +194,11 @@ const Development: React.FC = () => {
     
     loadNetworkInfo();
   }, []);
+
+  // Debug: Monitor discoveryInfo state changes
+  useEffect(() => {
+    console.log('🎯 DiscoveryInfo state changed:', discoveryInfo);
+  }, [discoveryInfo]);
 
   // WebSocket connection management for custom address monitoring
   useEffect(() => {
@@ -825,6 +840,28 @@ const Development: React.FC = () => {
                   }}
                 >
                   Test Discovery
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🧪 Manual state test');
+                    setDiscoveryInfo(prev => ({
+                      ...prev,
+                      currentIP: '192.168.1.100',
+                      testedIPs: ['192.168.1.1', '192.168.1.2', '192.168.1.100'],
+                      totalIPs: 10,
+                      progress: 30,
+                      isDiscovering: true,
+                      startTime: new Date()
+                    }));
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{
+                    backgroundColor: `${currentTheme.colors.success}20`,
+                    border: `1px solid ${currentTheme.colors.success}40`,
+                    color: currentTheme.colors.success
+                  }}
+                >
+                  Test UI
                 </button>
               </div>
             </div>
