@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Force font size increases for better readability on 1280x720 screens */
+html {
+  font-size: 18px; /* Increase base font size */
+}
+
 /* Essential browser resets and full screen setup */
 * {
   box-sizing: border-box;

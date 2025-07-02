@@ -98,16 +98,19 @@ const Development: React.FC = () => {
             : addr
         ));
       } else {
+        console.error('Read failed:', response);
         setCustomAddresses(prev => prev.map(addr => 
           addr.id === id 
-            ? { ...addr, error: response.message, lastRead: new Date() }
+            ? { ...addr, error: `API Error: ${response.message}`, lastRead: new Date() }
             : addr
         ));
       }
     } catch (error) {
+      console.error('Read error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setCustomAddresses(prev => prev.map(addr => 
         addr.id === id 
-          ? { ...addr, error: 'Network error', lastRead: new Date() }
+          ? { ...addr, error: `Network Error: ${errorMessage}`, lastRead: new Date() }
           : addr
       ));
     }
@@ -142,6 +145,7 @@ const Development: React.FC = () => {
         }
       }
 
+      console.log(`Writing ${parsedValue} to ${writeAddress.trim()}`);
       const response = await apiService.writeCustomAddress(writeAddress.trim(), parsedValue);
       if (response.success) {
         console.log('Write successful:', response.data);
@@ -156,10 +160,13 @@ const Development: React.FC = () => {
         setWriteAddress('');
         setWriteValue('');
       } else {
-        console.error('Write failed:', response.message);
+        console.error('Write failed:', response);
+        alert(`Write failed: ${response.message}`);
       }
     } catch (error) {
       console.error('Write error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Write error: ${errorMessage}`);
     } finally {
       setIsWriting(false);
     }
@@ -293,14 +300,20 @@ const Development: React.FC = () => {
                   backgroundColor: connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger
                 }}
               />
-              <span
-                className="font-medium"
-                style={{
-                  color: connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger
-                }}
-              >
-                {connectionStatus ? 'Connected to PLC' : 'Disconnected from PLC'}
-              </span>
+              <div>
+                <span
+                  className="font-medium"
+                  style={{
+                    color: connectionStatus ? currentTheme.colors.success : currentTheme.colors.danger
+                  }}
+                >
+                  {connectionStatus ? 'Connected to Backend' : 'Disconnected from Backend'}
+                </span>
+                <div className="text-sm opacity-75">
+                  WebSocket: {connectionStatus ? 'Active' : 'Inactive'} | 
+                  Backend API: {connectionStatus ? 'Available' : 'Check if backend server is running on :8000'}
+                </div>
+              </div>
             </div>
             {lastUpdated && (
               <span

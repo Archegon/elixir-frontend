@@ -587,12 +587,15 @@ class ApiService {
 
   // === Development & Custom PLC Access ===
   async readCustomAddress(address: string): Promise<ApiResponse> {
+    await this.waitForInitialization();
     return this.makeRequest(`${API_ENDPOINTS.PLC.READ}/${encodeURIComponent(address)}`);
   }
 
   async writeCustomAddress(address: string, value: number | boolean): Promise<ApiResponse> {
+    await this.waitForInitialization();
     return this.makeRequest(`${API_ENDPOINTS.PLC.WRITE}/${encodeURIComponent(address)}`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value })
     });
   }
