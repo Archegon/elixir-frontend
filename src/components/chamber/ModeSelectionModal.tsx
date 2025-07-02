@@ -481,7 +481,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
   return (
     <div 
-      className={`fixed inset-0 flex items-start justify-center pt-[1vh] z-50 transition-all duration-300 ${
+      className={`fixed inset-0 flex items-center justify-center z-50 transition-all duration-300 ${
         isAnimating ? 'bg-black/0' : 'bg-black/40 backdrop-blur-sm'
       }`}
       onClick={handleClose}
@@ -493,7 +493,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
         }`}
         style={{
           ...containerStyles.modal(currentTheme),
-          transform: `scale(${scale}) ${isAnimating ? 'scale(0.95) translateY(1rem)' : ''}`,
+          transform: `scale(1) ${isAnimating ? 'scale(0.95) translateY(1rem)' : ''}`,
           transformOrigin: 'center center',
           overflow: 'hidden',
           display: 'flex',
