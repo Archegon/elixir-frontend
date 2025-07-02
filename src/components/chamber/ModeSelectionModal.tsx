@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { ModeConfiguration, TreatmentMode, CompressionMode } from '../../types/chamber';
 import type { PLCStatus } from '../../config/api-endpoints';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -24,13 +24,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [plcStatus, setPlcStatus] = useState<PLCStatus | null>(null);
-  const { scale, modalRef } = useModalScaling({ 
-    isOpen, 
-    isVisible,
-    viewportThreshold: 0.98,
-    scaleThreshold: 0.95,
-    minScale: 0.8
-  });
+  // Temporarily disable scaling to debug height issues
+  const scale = 1;
+  const modalRef = useRef<HTMLDivElement>(null);
   
   // Helper function to convert PLC status to ModeConfiguration
   const convertPlcStatusToConfig = useCallback((status: PLCStatus | null): ModeConfiguration => {
@@ -484,6 +480,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
       className={`fixed inset-0 flex items-center justify-center z-50 transition-all duration-300 ${
         isAnimating ? 'bg-black/0' : 'bg-black/40 backdrop-blur-sm'
       }`}
+      style={{ height: '100vh', width: '100vw' }}
       onClick={handleClose}
     >
       <div 
