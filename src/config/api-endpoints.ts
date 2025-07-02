@@ -97,6 +97,11 @@ export const API_ENDPOINTS = {
   PLC: {
     READ: '/api/plc/read',
     WRITE: '/api/plc/write',
+    MONITOR: {
+      ADD: '/api/plc/monitor/add',
+      REMOVE: '/api/plc/monitor/remove',
+      LIST: '/api/plc/monitor/list',
+    },
   },
 };
 

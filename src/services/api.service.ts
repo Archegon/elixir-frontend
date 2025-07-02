@@ -593,16 +593,101 @@ class ApiService {
 
   async writeCustomAddress(address: string, value: number | boolean): Promise<ApiResponse> {
     await this.waitForInitialization();
-    return this.makeRequest(`${API_ENDPOINTS.PLC.WRITE}/${encodeURIComponent(address)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value })
-    });
+    
+    try {
+      const response = await fetch(`${API_ENDPOINTS.PLC.WRITE}/${address}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ value }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error writing to custom address:', error);
+      throw error;
+    }
   }
 
   // === Health Check ===
   async getHealth(): Promise<ApiResponse> {
     return this.makeRequest(API_ENDPOINTS.HEALTH);
+  }
+
+  // === Custom PLC Access ===
+  async addAddressMonitoring(address: string): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    
+    try {
+      const response = await fetch(`${API_ENDPOINTS.PLC.MONITOR.ADD}/${address}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error adding address to monitoring:', error);
+      throw error;
+    }
+  }
+
+  async removeAddressMonitoring(address: string): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    
+    try {
+      const response = await fetch(`${API_ENDPOINTS.PLC.MONITOR.REMOVE}/${address}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error removing address from monitoring:', error);
+      throw error;
+    }
+  }
+
+  async getMonitoredAddresses(): Promise<ApiResponse> {
+    await this.waitForInitialization();
+    
+    try {
+      const response = await fetch(`${API_ENDPOINTS.PLC.MONITOR.LIST}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting monitored addresses:', error);
+      throw error;
+    }
   }
 
   // ===============================================

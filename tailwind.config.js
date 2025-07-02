@@ -20,16 +20,16 @@ export default {
 
       // Global font size increases for better readability on 1280x720 screens
       fontSize: {
-        'xs': '14px',      // was 12px (+2px) - Labels, badges, small details
-        'sm': '16px',      // was 14px (+2px) - Secondary text, descriptions  
-        'base': '18px',    // was 16px (+2px) - Body text
-        'lg': '20px',      // was 18px (+2px) - Headings, important text
-        'xl': '22px',      // was 20px (+2px) - Large headings
-        '2xl': '26px',     // was 24px (+2px) - Display text, timers
-        '3xl': '32px',     // was 30px (+2px) - Large displays
-        '4xl': '38px',     // was 36px (+2px) - Extra large displays
-        '5xl': '50px',     // was 48px (+2px) - Hero text
-        '6xl': '62px',     // was 60px (+2px) - Extra hero text
+        'xs': '16px',      // was 14px (+2px more) - Labels, badges, small details
+        'sm': '18px',      // was 16px (+2px more) - Secondary text, descriptions  
+        'base': '20px',    // was 18px (+2px more) - Body text
+        'lg': '22px',      // was 20px (+2px more) - Headings, important text
+        'xl': '24px',      // was 22px (+2px more) - Large headings
+        '2xl': '28px',     // was 26px (+2px more) - Display text, timers
+        '3xl': '34px',     // was 32px (+2px more) - Large displays
+        '4xl': '40px',     // was 38px (+2px more) - Extra large displays
+        '5xl': '52px',     // was 50px (+2px more) - Hero text
+        '6xl': '64px',     // was 62px (+2px more) - Extra hero text
       },
       
       // Custom shadows for depth
