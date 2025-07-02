@@ -7,6 +7,14 @@ import ElixirLogo from '../components/ui/ElixirLogo';
 import apiService from '../services/api.service';
 import type { PLCStatus } from '../config/api-endpoints';
 
+interface CustomAddress {
+  id: string;
+  address: string;
+  value: any;
+  lastRead: Date | null;
+  error?: string;
+}
+
 const Development: React.FC = () => {
   const { currentTheme } = useTheme();
   const scaleFactor = useScaling();
@@ -15,7 +23,13 @@ const Development: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<boolean>(false);
 
-
+  // Custom address monitoring state
+  const [customAddresses, setCustomAddresses] = useState<CustomAddress[]>([]);
+  const [newAddress, setNewAddress] = useState('');
+  const [writeAddress, setWriteAddress] = useState('');
+  const [writeValue, setWriteValue] = useState('');
+  const [isReading, setIsReading] = useState(false);
+  const [isWriting, setIsWriting] = useState(false);
 
   useEffect(() => {
     // Subscribe to PLC status updates
@@ -46,6 +60,110 @@ const Development: React.FC = () => {
       apiService.off('disconnected', handleConnectionChange);
     };
   }, []);
+
+  // Custom address monitoring functions
+  const addCustomAddress = async () => {
+    if (!newAddress.trim() || customAddresses.some(addr => addr.address === newAddress.trim())) {
+      return;
+    }
+
+    const newCustomAddress: CustomAddress = {
+      id: Date.now().toString(),
+      address: newAddress.trim(),
+      value: null,
+      lastRead: null
+    };
+
+    setCustomAddresses(prev => [...prev, newCustomAddress]);
+    setNewAddress('');
+
+    // Read initial value
+    await readCustomAddress(newCustomAddress.id);
+  };
+
+  const removeCustomAddress = (id: string) => {
+    setCustomAddresses(prev => prev.filter(addr => addr.id !== id));
+  };
+
+  const readCustomAddress = async (id: string) => {
+    const address = customAddresses.find(addr => addr.id === id);
+    if (!address) return;
+
+    try {
+      const response = await apiService.readCustomAddress(address.address);
+      if (response.success) {
+        setCustomAddresses(prev => prev.map(addr => 
+          addr.id === id 
+            ? { ...addr, value: response.data.value, lastRead: new Date(), error: undefined }
+            : addr
+        ));
+      } else {
+        setCustomAddresses(prev => prev.map(addr => 
+          addr.id === id 
+            ? { ...addr, error: response.message, lastRead: new Date() }
+            : addr
+        ));
+      }
+    } catch (error) {
+      setCustomAddresses(prev => prev.map(addr => 
+        addr.id === id 
+          ? { ...addr, error: 'Network error', lastRead: new Date() }
+          : addr
+      ));
+    }
+  };
+
+  const readAllCustomAddresses = async () => {
+    if (customAddresses.length === 0) return;
+    
+    setIsReading(true);
+    for (const address of customAddresses) {
+      await readCustomAddress(address.id);
+    }
+    setIsReading(false);
+  };
+
+  const writeCustomAddress = async () => {
+    if (!writeAddress.trim() || writeValue.trim() === '') return;
+
+    setIsWriting(true);
+    try {
+      let parsedValue: number | boolean;
+      
+      // Parse the value
+      if (writeValue.toLowerCase() === 'true') {
+        parsedValue = true;
+      } else if (writeValue.toLowerCase() === 'false') {
+        parsedValue = false;
+      } else {
+        parsedValue = parseFloat(writeValue);
+        if (isNaN(parsedValue)) {
+          throw new Error('Invalid value format');
+        }
+      }
+
+      const response = await apiService.writeCustomAddress(writeAddress.trim(), parsedValue);
+      if (response.success) {
+        console.log('Write successful:', response.data);
+        
+        // Update the address in our monitoring list if it exists
+        const existingAddress = customAddresses.find(addr => addr.address === writeAddress.trim());
+        if (existingAddress) {
+          await readCustomAddress(existingAddress.id);
+        }
+        
+        // Clear write form
+        setWriteAddress('');
+        setWriteValue('');
+      } else {
+        console.error('Write failed:', response.message);
+      }
+    } catch (error) {
+      console.error('Write error:', error);
+    } finally {
+      setIsWriting(false);
+    }
+  };
 
   const renderSection = (title: string, data: Record<string, any> | undefined) => {
     if (!data) return null;
@@ -207,6 +325,218 @@ const Development: React.FC = () => {
             minHeight: '0'
           }}
         >
+          {/* Custom Bit Monitoring Section */}
+          <div
+            className="rounded-xl p-6 mb-6"
+            style={{
+              backgroundColor: currentTheme.colors.primary,
+              border: `1px solid ${currentTheme.colors.border}`,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)'
+            }}
+          >
+            <h3
+              className="text-lg font-semibold mb-4 border-b pb-2"
+              style={{
+                color: currentTheme.colors.textPrimary,
+                borderColor: currentTheme.colors.border
+              }}
+            >
+              Custom PLC Address Monitoring
+            </h3>
+
+            {/* Add New Address */}
+            <div className="mb-6">
+              <div className="flex gap-3 mb-4">
+                <input
+                  type="text"
+                  value={newAddress}
+                  onChange={(e) => setNewAddress(e.target.value)}
+                  placeholder="Enter PLC address (e.g., M1.0, VD100)"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm font-mono"
+                  style={{
+                    backgroundColor: currentTheme.colors.secondary,
+                    border: `1px solid ${currentTheme.colors.border}`,
+                    color: currentTheme.colors.textPrimary
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && addCustomAddress()}
+                />
+                <button
+                  onClick={addCustomAddress}
+                  disabled={!newAddress.trim() || !connectionStatus}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: `${currentTheme.colors.brand}20`,
+                    border: `1px solid ${currentTheme.colors.brand}40`,
+                    color: currentTheme.colors.brand
+                  }}
+                >
+                  Add Monitor
+                </button>
+                <button
+                  onClick={readAllCustomAddresses}
+                  disabled={customAddresses.length === 0 || !connectionStatus || isReading}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: `${currentTheme.colors.success}20`,
+                    border: `1px solid ${currentTheme.colors.success}40`,
+                    color: currentTheme.colors.success
+                  }}
+                >
+                  {isReading ? 'Reading...' : 'Read All'}
+                </button>
+              </div>
+            </div>
+
+            {/* Write to Address */}
+            <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: `${currentTheme.colors.warning}10`, border: `1px solid ${currentTheme.colors.warning}30` }}>
+              <h4 className="text-sm font-semibold mb-3" style={{ color: currentTheme.colors.warning }}>
+                ⚠️ Write to PLC Address (Use with caution!)
+              </h4>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={writeAddress}
+                  onChange={(e) => setWriteAddress(e.target.value)}
+                  placeholder="PLC address"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm font-mono"
+                  style={{
+                    backgroundColor: currentTheme.colors.secondary,
+                    border: `1px solid ${currentTheme.colors.border}`,
+                    color: currentTheme.colors.textPrimary
+                  }}
+                />
+                <input
+                  type="text"
+                  value={writeValue}
+                  onChange={(e) => setWriteValue(e.target.value)}
+                  placeholder="Value (number, true, false)"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm font-mono"
+                  style={{
+                    backgroundColor: currentTheme.colors.secondary,
+                    border: `1px solid ${currentTheme.colors.border}`,
+                    color: currentTheme.colors.textPrimary
+                  }}
+                />
+                <button
+                  onClick={writeCustomAddress}
+                  disabled={!writeAddress.trim() || writeValue.trim() === '' || !connectionStatus || isWriting}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: `${currentTheme.colors.danger}20`,
+                    border: `1px solid ${currentTheme.colors.danger}40`,
+                    color: currentTheme.colors.danger
+                  }}
+                >
+                  {isWriting ? 'Writing...' : 'Write'}
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Addresses List */}
+            {customAddresses.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {customAddresses.map((address) => (
+                  <div
+                    key={address.id}
+                    className="p-3 rounded-lg"
+                    style={{
+                      backgroundColor: currentTheme.colors.secondary,
+                      border: `1px solid ${currentTheme.colors.border}`
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className="text-sm font-mono font-semibold"
+                        style={{ color: currentTheme.colors.brand }}
+                      >
+                        {address.address}
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => readCustomAddress(address.id)}
+                          disabled={!connectionStatus}
+                          className="text-xs px-2 py-1 rounded transition-all duration-200 hover:scale-105"
+                          style={{
+                            backgroundColor: `${currentTheme.colors.info}20`,
+                            color: currentTheme.colors.info
+                          }}
+                        >
+                          Read
+                        </button>
+                        <button
+                          onClick={() => removeCustomAddress(address.id)}
+                          className="text-xs px-2 py-1 rounded transition-all duration-200 hover:scale-105"
+                          style={{
+                            backgroundColor: `${currentTheme.colors.danger}20`,
+                            color: currentTheme.colors.danger
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {address.error ? (
+                      <div
+                        className="text-xs px-2 py-1 rounded"
+                        style={{
+                          backgroundColor: `${currentTheme.colors.danger}20`,
+                          color: currentTheme.colors.danger
+                        }}
+                      >
+                        Error: {address.error}
+                      </div>
+                    ) : (
+                      <div
+                        className="font-mono text-sm"
+                        style={{ color: currentTheme.colors.textPrimary }}
+                      >
+                        {address.value !== null ? (
+                          <span
+                            className="px-2 py-1 rounded text-xs font-medium"
+                            style={{
+                              backgroundColor: typeof address.value === 'boolean' 
+                                ? (address.value ? `${currentTheme.colors.success}20` : `${currentTheme.colors.danger}20`)
+                                : `${currentTheme.colors.info}20`,
+                              color: typeof address.value === 'boolean' 
+                                ? (address.value ? currentTheme.colors.success : currentTheme.colors.danger)
+                                : currentTheme.colors.info
+                            }}
+                          >
+                            {String(address.value)}
+                          </span>
+                        ) : (
+                          <span style={{ color: currentTheme.colors.textSecondary }}>
+                            No data
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {address.lastRead && (
+                      <div
+                        className="text-xs mt-2"
+                        style={{ color: currentTheme.colors.textSecondary }}
+                      >
+                        Last read: {address.lastRead.toLocaleTimeString()}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {customAddresses.length === 0 && (
+              <div
+                className="text-center py-8"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
+                No custom addresses added yet. Enter a PLC address above to start monitoring.
+              </div>
+            )}
+          </div>
+
           {plcData ? (
             <>
               {renderSection('Authentication', plcData.auth)}

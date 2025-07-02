@@ -18,9 +18,10 @@ const SideNavbar: React.FC<SideNavbarProps> = ({ onThemeModalOpen, onEnvControls
   const navigationItems = [
     { icon: Home, label: 'Dashboard', path: '/', active: location.pathname === '/' },
     { icon: Code, label: 'Development', path: '/development', active: location.pathname === '/development' },
-    { icon: BarChart3, label: 'Analytics', path: '/analytics', active: location.pathname === '/analytics' },
-    { icon: Settings, label: 'Settings', path: '/settings', active: location.pathname === '/settings' },
-    { icon: Bell, label: 'Alerts', path: '/alerts', active: location.pathname === '/alerts' },
+    // Hide unimplemented routes to prevent navigation issues
+    // { icon: BarChart3, label: 'Analytics', path: '/analytics', active: location.pathname === '/analytics' },
+    // { icon: Settings, label: 'Settings', path: '/settings', active: location.pathname === '/settings' },
+    // { icon: Bell, label: 'Alerts', path: '/alerts', active: location.pathname === '/alerts' },
   ];
 
   const handleNavigation = (path: string) => {

@@ -92,6 +92,12 @@ export const API_ENDPOINTS = {
   SYSTEM: {
     STATUS: '/api/status/system',
   },
+
+  // Development & Custom PLC Access
+  PLC: {
+    READ: '/api/plc/read',
+    WRITE: '/api/plc/write',
+  },
 };
 
 // WebSocket Endpoints
@@ -189,9 +195,12 @@ export interface PLCStatus {
   };
   
   climate: {
-    ac_mode: number;
+    ac_auto: boolean;
+    ac_low: boolean;
+    ac_mid: boolean;
+    ac_high: boolean;
     temperature_setpoint: number;
-    heating_cooling_mode: boolean;
+    heating_cooling_toggle: boolean;
   };
   
   sensors: {

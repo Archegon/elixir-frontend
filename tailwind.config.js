@@ -17,6 +17,20 @@ export default {
         'medical': ['Inter', 'system-ui', 'sans-serif'],
         'mono': ['JetBrains Mono', 'Consolas', 'monospace'],
       },
+
+      // Global font size increases for better readability on 1280x720 screens
+      fontSize: {
+        'xs': '14px',      // was 12px (+2px) - Labels, badges, small details
+        'sm': '16px',      // was 14px (+2px) - Secondary text, descriptions  
+        'base': '18px',    // was 16px (+2px) - Body text
+        'lg': '20px',      // was 18px (+2px) - Headings, important text
+        'xl': '22px',      // was 20px (+2px) - Large headings
+        '2xl': '26px',     // was 24px (+2px) - Display text, timers
+        '3xl': '32px',     // was 30px (+2px) - Large displays
+        '4xl': '38px',     // was 36px (+2px) - Extra large displays
+        '5xl': '50px',     // was 48px (+2px) - Hero text
+        '6xl': '62px',     // was 60px (+2px) - Extra hero text
+      },
       
       // Custom shadows for depth
       boxShadow: {

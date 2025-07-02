@@ -143,6 +143,29 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
     }
   };
 
+  const handleAutoToggle = async () => {
+    if (!isConnected || pendingOperations.has('fan_auto_toggle')) return;
+    
+    setPendingOperations(prev => new Set(prev).add('fan_auto_toggle'));
+    try {
+      // If auto is currently on, we need to turn it off (go to manual)
+      // If auto is off, turn it on
+      const mode = getFanAutoState() ? 'low' : 'auto'; // Default to low when switching from auto to manual
+      const response = await apiService.setACFanMode(mode);
+      if (!response.success) {
+        console.error('Failed to toggle auto mode:', response.message);
+      }
+    } catch (error) {
+      console.error('Error toggling auto mode:', error);
+    } finally {
+      setPendingOperations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete('fan_auto_toggle');
+        return newSet;
+      });
+    }
+  };
+
   const handleLightToggle = async (lightType: 'ceiling' | 'reading' | 'door') => {
     if (!isConnected || pendingOperations.has(`${lightType}_lights`)) return;
     
@@ -184,15 +207,21 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
     return currentStatus?.climate?.temperature_setpoint || 22;
   };
 
-  const getCurrentFanMode = (): 'auto' | 'low' | 'mid' | 'high' => {
-    const mode = currentStatus?.climate?.ac_mode || 0;
-    switch (mode) {
-      case 0: return 'auto';
-      case 1: return 'low';
-      case 2: return 'mid';
-      case 3: return 'high';
-      default: return 'auto';
-    }
+  // Fan mode helper functions - reading individual bits
+  const getFanAutoState = (): boolean => {
+    return currentStatus?.climate?.ac_auto || false;
+  };
+
+  const getFanLowState = (): boolean => {
+    return currentStatus?.climate?.ac_low || false;
+  };
+
+  const getFanMidState = (): boolean => {
+    return currentStatus?.climate?.ac_mid || false;
+  };
+
+  const getFanHighState = (): boolean => {
+    return currentStatus?.climate?.ac_high || false;
   };
 
   const getCeilingLightsState = (): boolean => {
@@ -353,29 +382,71 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
               </div>
               
               <div className="space-y-4">
-                {/* Fan Mode */}
+                {/* Auto/Manual Toggle */}
                 <div className="space-y-2">
                   <label style={{ color: currentTheme.colors.textSecondary }}>Fan Mode</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['auto', 'low', 'mid', 'high'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() => handleFanModeChange(mode)}
-                        disabled={!isConnected || pendingOperations.has('fan_mode')}
-                        className="px-3 py-2 rounded-lg font-medium transition-all duration-200 capitalize hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          backgroundColor: getCurrentFanMode() === mode 
-                            ? `${currentTheme.colors.brand}20` 
-                            : `${currentTheme.colors.border}20`,
-                          border: `1px solid ${getCurrentFanMode() === mode ? currentTheme.colors.brand : currentTheme.colors.border}40`,
-                          color: currentTheme.colors.textPrimary
-                        }}
-                      >
-                        {pendingOperations.has('fan_mode') && getCurrentFanMode() === mode ? 'Setting...' : mode}
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    onClick={handleAutoToggle}
+                    disabled={!isConnected || pendingOperations.has('fan_auto_toggle')}
+                    className="w-full px-4 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: getFanAutoState() 
+                        ? `${currentTheme.colors.brand}20` 
+                        : `${currentTheme.colors.warning}20`,
+                      border: `1px solid ${getFanAutoState() ? currentTheme.colors.brand : currentTheme.colors.warning}40`,
+                      color: getFanAutoState() ? currentTheme.colors.brand : currentTheme.colors.warning
+                    }}
+                  >
+                    {pendingOperations.has('fan_auto_toggle') 
+                      ? 'Switching...' 
+                      : (getFanAutoState() ? 'Auto' : 'Manual')
+                    }
+                  </button>
                 </div>
+
+                {/* Manual Speed Controls - Only show when not in Auto mode */}
+                {!getFanAutoState() && (
+                  <div className="space-y-2">
+                    <label style={{ color: currentTheme.colors.textSecondary }}>Fan Speed</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { mode: 'low' as const, label: 'Low', getState: getFanLowState },
+                        { mode: 'mid' as const, label: 'Mid', getState: getFanMidState },
+                        { mode: 'high' as const, label: 'High', getState: getFanHighState }
+                      ].map(({ mode, label, getState }) => (
+                        <button
+                          key={mode}
+                          onClick={() => handleFanModeChange(mode)}
+                          disabled={!isConnected || pendingOperations.has('fan_mode')}
+                          className="px-3 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            backgroundColor: getState() 
+                              ? `${currentTheme.colors.brand}20` 
+                              : `${currentTheme.colors.border}20`,
+                            border: `1px solid ${getState() ? currentTheme.colors.brand : currentTheme.colors.border}40`,
+                            color: getState() ? currentTheme.colors.brand : currentTheme.colors.textPrimary
+                          }}
+                        >
+                          {pendingOperations.has('fan_mode') && getState() ? 'Setting...' : label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto Mode Indicator */}
+                {getFanAutoState() && (
+                  <div 
+                    className="px-3 py-2 rounded-lg text-center text-sm"
+                    style={{
+                      backgroundColor: `${currentTheme.colors.info}15`,
+                      border: `1px solid ${currentTheme.colors.info}30`,
+                      color: currentTheme.colors.info
+                    }}
+                  >
+                    Fan speed is automatically controlled based on temperature
+                  </div>
+                )}
               </div>
             </div>
 

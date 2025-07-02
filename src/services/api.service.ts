@@ -576,18 +576,28 @@ class ApiService {
   }
 
   async changePassword(oldPassword: string, newPassword: string): Promise<ApiResponse> {
-    await this.waitForInitialization();
     return this.makeRequest(API_ENDPOINTS.AUTH.INPUT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        old_password: parseInt(oldPassword, 10), 
-        new_password: parseInt(newPassword, 10) 
+      body: JSON.stringify({
+        old_password: oldPassword,
+        new_password: newPassword
       })
     });
   }
 
-  // Status Methods
+  // === Development & Custom PLC Access ===
+  async readCustomAddress(address: string): Promise<ApiResponse> {
+    return this.makeRequest(`${API_ENDPOINTS.PLC.READ}/${encodeURIComponent(address)}`);
+  }
+
+  async writeCustomAddress(address: string, value: number | boolean): Promise<ApiResponse> {
+    return this.makeRequest(`${API_ENDPOINTS.PLC.WRITE}/${encodeURIComponent(address)}`, {
+      method: 'POST',
+      body: JSON.stringify({ value })
+    });
+  }
+
+  // === Health Check ===
   async getHealth(): Promise<ApiResponse> {
     return this.makeRequest(API_ENDPOINTS.HEALTH);
   }
