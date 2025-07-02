@@ -149,7 +149,9 @@ class BackendDiscovery {
     }
 
     this.isDiscovering = true;
-    this.emit('discovery-start', { method: 'scan' });
+    const startData = { method: 'scan' };
+    console.log('🚀 Discovery start:', startData);
+    this.emit('discovery-start', startData);
 
     try {
       // First try explicit environment variables if set
@@ -158,12 +160,15 @@ class BackendDiscovery {
       
       if (explicitApiUrl && explicitWsUrl) {
         console.log('🎯 Using explicit backend URLs from environment');
-        this.emit('discovery-start', { method: 'explicit' });
+        const startData = { method: 'explicit' };
+        console.log('🚀 Discovery start:', startData);
+        this.emit('discovery-start', startData);
         const isValid = await this.verifyBackendService(explicitApiUrl);
         if (isValid) {
           const result = { apiUrl: explicitApiUrl, wsUrl: explicitWsUrl };
           this.discoveredBaseUrl = explicitApiUrl;
           this.discoveredWsUrl = explicitWsUrl;
+          console.log('✅ Discovery complete (explicit):', result);
           this.emit('discovery-complete', result);
           return result;
         } else {
@@ -173,7 +178,9 @@ class BackendDiscovery {
 
       if (!DISCOVERY_CONFIG.ENABLED) {
         console.log('🔒 Auto-discovery disabled, using fallback');
-        this.emit('discovery-start', { method: 'fallback' });
+        const startData = { method: 'fallback' };
+        console.log('🚀 Discovery start:', startData);
+        this.emit('discovery-start', startData);
         const fallbackUrl = DISCOVERY_CONFIG.FALLBACK_URLS[0];
         const result = { 
           apiUrl: fallbackUrl, 
@@ -181,6 +188,7 @@ class BackendDiscovery {
         };
         this.discoveredBaseUrl = result.apiUrl;
         this.discoveredWsUrl = result.wsUrl;
+        console.log('✅ Discovery complete (fallback):', result);
         this.emit('discovery-complete', result);
         return result;
       }
@@ -203,6 +211,7 @@ class BackendDiscovery {
         this.discoveredWsUrl = wsUrl;
         
         const result = { apiUrl, wsUrl };
+        console.log('✅ Discovery complete (scan):', result);
         this.emit('discovery-complete', result);
         return result;
       }
@@ -216,6 +225,7 @@ class BackendDiscovery {
       };
       this.discoveredBaseUrl = result.apiUrl;
       this.discoveredWsUrl = result.wsUrl;
+      console.log('✅ Discovery complete (final fallback):', result);
       this.emit('discovery-complete', result);
       return result;
 
@@ -326,12 +336,14 @@ class BackendDiscovery {
         const subnet = ip.split('.').slice(0, 3).join('.');
         
         // Emit progress update with subnet information
-        this.emit('discovery-progress', {
+        const progressData = {
           currentIP: ip,
           testedIPs: [...testedIPs],
           totalIPs,
           subnet
-        });
+        };
+        console.log('🔍 Discovery progress:', progressData);
+        this.emit('discovery-progress', progressData);
         
         return this.testBackendConnection(url);
       });

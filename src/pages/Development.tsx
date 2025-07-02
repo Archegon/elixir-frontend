@@ -7,7 +7,7 @@ import ElixirLogo from '../components/ui/ElixirLogo';
 import { apiService } from '../services/api.service';
 import type { PLCStatus } from '../config/api-endpoints';
 import { useBackendConnection } from '../hooks/useBackendConnection';
-import { getDiscoveryStats, resetDiscovery, DISCOVERY_CONFIG } from '../config/connection.config';
+import { getDiscoveryStats, resetDiscovery, DISCOVERY_CONFIG, discoverBackend } from '../config/connection.config';
 
 interface CustomAddress {
   id: string;
@@ -88,6 +88,7 @@ const Development: React.FC = () => {
 
     // Discovery event listeners
     const handleDiscoveryStart = (data?: any) => {
+      console.log('🎯 Development: Discovery start received:', data);
       setDiscoveryInfo(prev => ({ 
         ...prev, 
         isDiscovering: true, 
@@ -100,6 +101,7 @@ const Development: React.FC = () => {
     };
 
     const handleDiscoveryComplete = (data: { apiUrl: string; wsUrl: string }) => {
+      console.log('🎯 Development: Discovery complete received:', data);
       setDiscoveryInfo(prev => ({ 
         ...prev, 
         isDiscovering: false, 
@@ -110,6 +112,7 @@ const Development: React.FC = () => {
     };
 
     const handleDiscoveryProgress = (data: { currentIP: string; testedIPs: string[]; totalIPs: number; subnet?: string }) => {
+      console.log('🎯 Development: Discovery progress received:', data);
       const progress = (data.testedIPs.length / data.totalIPs) * 100;
       setDiscoveryInfo(prev => ({ 
         ...prev, 
@@ -560,258 +563,7 @@ const Development: React.FC = () => {
             )}
           </div>
 
-          {/* Discovery Status */}
-          <div
-            className="rounded-xl p-4 mb-6"
-            style={{
-              backgroundColor: `${currentTheme.colors.info}10`,
-              border: `1px solid ${currentTheme.colors.info}30`
-            }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3
-                className="text-sm font-semibold"
-                style={{ color: currentTheme.colors.info }}
-              >
-                🔍 Backend Discovery Status
-              </h3>
-              <button
-                onClick={() => {
-                  resetDiscovery();
-                  apiService.reconnectWithDiscovery();
-                }}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  backgroundColor: `${currentTheme.colors.info}20`,
-                  border: `1px solid ${currentTheme.colors.info}40`,
-                  color: currentTheme.colors.info
-                }}
-              >
-                Retry Discovery
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {/* Status and Method */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: currentTheme.colors.textSecondary }}>Status:</span>
-                  <span style={{ color: currentTheme.colors.textPrimary }}>
-                    {discoveryInfo.isDiscovering ? '🔍 Discovering...' : '✅ Discovery Complete'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: currentTheme.colors.textSecondary }}>Method:</span>
-                  <span style={{ color: currentTheme.colors.textPrimary }}>
-                    {discoveryInfo.discoveryMethod || 'Unknown'}
-                  </span>
-                </div>
-              </div>
-              
-              {/* Timing Information */}
-              {discoveryInfo.startTime && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Started:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {discoveryInfo.startTime.toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Elapsed:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {discoveryInfo.startTime ? 
-                        ((currentTime.getTime() - discoveryInfo.startTime.getTime()) / 1000).toFixed(1) + 's' : 
-                        discoveryInfo.elapsedTime ? 
-                        (discoveryInfo.elapsedTime / 1000).toFixed(1) + 's' : 
-                        '0.0s'
-                      }
-                    </span>
-                  </div>
-                </div>
-              )}
-              
-              {/* Connection Attempts */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: currentTheme.colors.textSecondary }}>Attempts:</span>
-                  <span style={{ color: currentTheme.colors.textPrimary }}>
-                    {discoveryInfo.connectionAttempts}
-                  </span>
-                </div>
-                {discoveryInfo.lastAttemptTime && (
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Last Attempt:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {discoveryInfo.lastAttemptTime.toLocaleTimeString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Discovered URL */}
-              {discoveryInfo.discoveredUrl && (
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: currentTheme.colors.textSecondary }}>Discovered URL:</span>
-                  <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
-                    {discoveryInfo.discoveredUrl}
-                  </span>
-                </div>
-              )}
-              
-              {/* Network Information */}
-              {discoveryInfo.networkInfo && (
-                <div className="space-y-2">
-                  <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
-                    Network Information:
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex justify-between text-sm">
-                      <span style={{ color: currentTheme.colors.textSecondary }}>Local IP:</span>
-                      <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
-                        {discoveryInfo.networkInfo.localIP || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span style={{ color: currentTheme.colors.textSecondary }}>Subnets:</span>
-                      <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
-                        {discoveryInfo.networkInfo.subnets.length}
-                      </span>
-                    </div>
-                  </div>
-                  {discoveryInfo.networkInfo.subnets.length > 0 && (
-                    <div className="text-xs font-mono" style={{ color: currentTheme.colors.textSecondary }}>
-                      Scanning: {discoveryInfo.networkInfo.subnets.slice(0, 3).join(', ')}
-                      {discoveryInfo.networkInfo.subnets.length > 3 && '...'}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Discovery Configuration */}
-              <div className="space-y-2">
-                <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
-                  Discovery Configuration:
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div className="flex justify-between">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Port:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {DISCOVERY_CONFIG.BACKEND_PORT}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Timeout:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {DISCOVERY_CONFIG.CHECK_TIMEOUT}ms
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Concurrent:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {DISCOVERY_CONFIG.SCAN_RANGE.MAX_CONCURRENT}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Quick Scan:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {DISCOVERY_CONFIG.SCAN_RANGE.QUICK_SCAN_ONLY ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Cache Information */}
-              <div className="flex justify-between text-sm">
-                <span style={{ color: currentTheme.colors.textSecondary }}>Cache Size:</span>
-                <span style={{ color: currentTheme.colors.textPrimary }}>
-                  {discoveryInfo.cacheSize} entries
-                </span>
-              </div>
-              
-              {/* Real-time Discovery Progress */}
-              {discoveryInfo.isDiscovering && (
-                <>
-                  {/* Current IP and Subnet */}
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
-                      Currently Testing:
-                    </div>
-                    <div 
-                      className="p-2 rounded-lg font-mono text-sm text-center animate-pulse"
-                      style={{
-                        backgroundColor: `${currentTheme.colors.info}20`,
-                        border: `1px solid ${currentTheme.colors.info}40`,
-                        color: currentTheme.colors.info
-                      }}
-                    >
-                      {discoveryInfo.currentIP || 'Testing...'}
-                    </div>
-                    {discoveryInfo.currentSubnet && (
-                      <div className="text-xs text-center" style={{ color: currentTheme.colors.textSecondary }}>
-                        Subnet: {discoveryInfo.currentSubnet}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span style={{ color: currentTheme.colors.textSecondary }}>Progress:</span>
-                      <span style={{ color: currentTheme.colors.textPrimary }}>
-                        {discoveryInfo.testedIPs.length} / {discoveryInfo.totalIPs} ({discoveryInfo.progress.toFixed(1)}%)
-                      </span>
-                    </div>
-                    
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="h-2 rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${discoveryInfo.progress}%`,
-                          backgroundColor: currentTheme.colors.info
-                        }}
-                      />
-                    </div>
-                    
-                    {/* Connection Speed */}
-                    {discoveryInfo.startTime && discoveryInfo.testedIPs.length > 0 && (
-                      <div className="flex justify-between text-xs">
-                        <span style={{ color: currentTheme.colors.textSecondary }}>Speed:</span>
-                        <span style={{ color: currentTheme.colors.textPrimary }}>
-                          {((discoveryInfo.testedIPs.length / ((currentTime.getTime() - discoveryInfo.startTime.getTime()) / 1000)) || 0).toFixed(1)} IPs/sec
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Recently Tested IPs */}
-                  {discoveryInfo.testedIPs.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
-                        Recently Tested IPs:
-                      </div>
-                      <div className="text-xs font-mono" style={{ color: currentTheme.colors.textPrimary }}>
-                        {discoveryInfo.testedIPs.slice(-5).join(' → ')}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Estimated Time Remaining */}
-                  {discoveryInfo.startTime && discoveryInfo.progress > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span style={{ color: currentTheme.colors.textSecondary }}>ETA:</span>
-                      <span style={{ color: currentTheme.colors.textPrimary }}>
-                        {discoveryInfo.progress < 100 ? 
-                          `${(((currentTime.getTime() - discoveryInfo.startTime.getTime()) / discoveryInfo.progress) * (100 - discoveryInfo.progress) / 1000).toFixed(1)}s remaining` : 
-                          'Complete'
-                        }
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+
         </div>
 
         {/* Scrollable Content Area */}
@@ -1022,6 +774,281 @@ const Development: React.FC = () => {
                 No custom addresses added yet. Enter a PLC address above to start real-time monitoring.
               </div>
             )}
+          </div>
+          
+          {/* Backend Discovery Status Section */}
+          <div
+            className="rounded-xl p-6 mb-6"
+            style={{
+              backgroundColor: `${currentTheme.colors.info}10`,
+              border: `1px solid ${currentTheme.colors.info}30`,
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)'
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3
+                className="text-lg font-semibold border-b pb-2"
+                style={{ 
+                  color: currentTheme.colors.info,
+                  borderColor: currentTheme.colors.info
+                }}
+              >
+                🔍 Backend Discovery Status
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    resetDiscovery();
+                    apiService.reconnectWithDiscovery();
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{
+                    backgroundColor: `${currentTheme.colors.info}20`,
+                    border: `1px solid ${currentTheme.colors.info}40`,
+                    color: currentTheme.colors.info
+                  }}
+                >
+                  Retry Discovery
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🧪 Manual discovery trigger');
+                    resetDiscovery();
+                    discoverBackend();
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{
+                    backgroundColor: `${currentTheme.colors.warning}20`,
+                    border: `1px solid ${currentTheme.colors.warning}40`,
+                    color: currentTheme.colors.warning
+                  }}
+                >
+                  Test Discovery
+                </button>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Status and Method */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Status:</span>
+                  <span style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.isDiscovering ? '🔍 Discovering...' : '✅ Discovery Complete'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Method:</span>
+                  <span style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.discoveryMethod || 'Unknown'}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Timing Information */}
+              {discoveryInfo.startTime && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Started:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.startTime.toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Elapsed:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.startTime ? 
+                        ((currentTime.getTime() - discoveryInfo.startTime.getTime()) / 1000).toFixed(1) + 's' : 
+                        discoveryInfo.elapsedTime ? 
+                        (discoveryInfo.elapsedTime / 1000).toFixed(1) + 's' : 
+                        '0.0s'
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Connection Attempts */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Attempts:</span>
+                  <span style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.connectionAttempts}
+                  </span>
+                </div>
+                {discoveryInfo.lastAttemptTime && (
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Last Attempt:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.lastAttemptTime.toLocaleTimeString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Discovered URL */}
+              {discoveryInfo.discoveredUrl && (
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Discovered URL:</span>
+                  <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.discoveredUrl}
+                  </span>
+                </div>
+              )}
+              
+              {/* Network Information */}
+              {discoveryInfo.networkInfo && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                    Network Information:
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>Local IP:</span>
+                      <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.networkInfo.localIP || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>Subnets:</span>
+                      <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.networkInfo.subnets.length}
+                      </span>
+                    </div>
+                  </div>
+                  {discoveryInfo.networkInfo.subnets.length > 0 && (
+                    <div className="text-xs font-mono" style={{ color: currentTheme.colors.textSecondary }}>
+                      Scanning: {discoveryInfo.networkInfo.subnets.slice(0, 3).join(', ')}
+                      {discoveryInfo.networkInfo.subnets.length > 3 && '...'}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Discovery Configuration */}
+              <div className="space-y-2">
+                <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                  Discovery Configuration:
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Port:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.BACKEND_PORT}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Timeout:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.CHECK_TIMEOUT}ms
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Concurrent:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.SCAN_RANGE.MAX_CONCURRENT}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Quick Scan:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.SCAN_RANGE.QUICK_SCAN_ONLY ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Cache Information */}
+              <div className="flex justify-between text-sm">
+                <span style={{ color: currentTheme.colors.textSecondary }}>Cache Size:</span>
+                <span style={{ color: currentTheme.colors.textPrimary }}>
+                  {discoveryInfo.cacheSize} entries
+                </span>
+              </div>
+              
+              {/* Real-time Discovery Progress */}
+              {discoveryInfo.isDiscovering && (
+                <>
+                  {/* Current IP and Subnet */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                      Currently Testing:
+                    </div>
+                    <div 
+                      className="p-3 rounded-lg font-mono text-sm text-center animate-pulse"
+                      style={{
+                        backgroundColor: `${currentTheme.colors.info}20`,
+                        border: `1px solid ${currentTheme.colors.info}40`,
+                        color: currentTheme.colors.info
+                      }}
+                    >
+                      {discoveryInfo.currentIP || 'Testing...'}
+                    </div>
+                    {discoveryInfo.currentSubnet && (
+                      <div className="text-xs text-center" style={{ color: currentTheme.colors.textSecondary }}>
+                        Subnet: {discoveryInfo.currentSubnet}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>Progress:</span>
+                      <span style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.testedIPs.length} / {discoveryInfo.totalIPs} ({discoveryInfo.progress.toFixed(1)}%)
+                      </span>
+                    </div>
+                    
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${discoveryInfo.progress}%`,
+                          backgroundColor: currentTheme.colors.info
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Connection Speed */}
+                    {discoveryInfo.startTime && discoveryInfo.testedIPs.length > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span style={{ color: currentTheme.colors.textSecondary }}>Speed:</span>
+                        <span style={{ color: currentTheme.colors.textPrimary }}>
+                          {((discoveryInfo.testedIPs.length / ((currentTime.getTime() - discoveryInfo.startTime.getTime()) / 1000)) || 0).toFixed(1)} IPs/sec
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Recently Tested IPs */}
+                  {discoveryInfo.testedIPs.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                        Recently Tested IPs:
+                      </div>
+                      <div className="text-xs font-mono" style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.testedIPs.slice(-5).join(' → ')}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Estimated Time Remaining */}
+                  {discoveryInfo.startTime && discoveryInfo.progress > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>ETA:</span>
+                      <span style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.progress < 100 ? 
+                          `${(((currentTime.getTime() - discoveryInfo.startTime.getTime()) / discoveryInfo.progress) * (100 - discoveryInfo.progress) / 1000).toFixed(1)}s remaining` : 
+                          'Complete'
+                        }
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           
           {plcData ? (
