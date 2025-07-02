@@ -27,9 +27,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
   const { scale, modalRef } = useModalScaling({ 
     isOpen, 
     isVisible,
-    viewportThreshold: 1.5, // Never trigger scaling (150% threshold)
-    scaleThreshold: 1.0,    // Don't scale down if triggered
-    minScale: 1.0           // Never scale below 100%
+    viewportThreshold: 0.98,
+    scaleThreshold: 0.95,
+    minScale: 0.8
   });
   
   // Helper function to convert PLC status to ModeConfiguration
@@ -499,7 +499,8 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
           display: 'flex',
           flexDirection: 'column',
           height: '98vh',
-          maxHeight: '98vh'
+          maxHeight: '98vh', // Override containerStyles.modal maxHeight constraint
+          minHeight: '98vh'   // Ensure it takes the full height
         }}
         onClick={(e) => e.stopPropagation()}
       >
