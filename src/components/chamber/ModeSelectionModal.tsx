@@ -488,13 +488,16 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     >
       <div 
         ref={modalRef}
-        className={`w-[95vw] max-w-[1400px] max-h-[90vh] border shadow-2xl backdrop-blur-md transition-all duration-300 ${
+        className={`w-[98vw] max-w-[1600px] h-[95vh] border shadow-2xl backdrop-blur-md transition-all duration-300 ${
           isAnimating ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
         }`}
         style={{
           ...containerStyles.modal(currentTheme),
           transform: `scale(${scale}) ${isAnimating ? 'scale(0.95) translateY(1rem)' : ''}`,
-          transformOrigin: 'center center'
+          transformOrigin: 'center center',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -530,17 +533,23 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
         </div>
 
         {/* Modal Content - Scrollable */}
-        <div style={containerStyles.modalContent(currentTheme)}>
-          <div className="p-6">
+        <div style={{
+          ...containerStyles.modalContent(currentTheme),
+          flex: 1,
+          maxHeight: 'none',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}>
+          <div className="p-6 h-full">
             
             {/* Configuration Grid */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-8 h-full">
               
               {/* Left Column */}
-              <div className="space-y-6">
+              <div className="space-y-8 flex flex-col h-full">
                 
                 {/* Treatment Mode Selection */}
-                <div style={containerStyles.section(currentTheme)}>
+                <div style={{...containerStyles.section(currentTheme), flex: 1, minHeight: '400px'}}>
                   <div className="flex items-center gap-3 mb-4">
                     <div 
                       className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -565,7 +574,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         <button
                           key={key}
                           onClick={() => updateTreatmentMode(key as TreatmentMode)}
-                          className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                          className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                           style={{
                             backgroundColor: isSelected 
                               ? `${color}20` 
@@ -574,9 +583,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                             color: currentTheme.colors.textPrimary
                           }}
                         >
-                          <div className="font-medium text-sm">{label}</div>
+                          <div className="font-semibold text-base">{label}</div>
                           <div 
-                            className="text-xs mt-1"
+                            className="text-sm mt-2"
                             style={{ color: currentTheme.colors.textSecondary }}
                           >
                             {description}
@@ -589,7 +598,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Compression Mode */}
                 {shouldShowCompressionConfig() && (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), minHeight: '250px'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -616,7 +625,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                             <button
                               key={key}
                               onClick={() => updateCompressionMode(key as CompressionMode)}
-                              className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                              className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                               style={{
                                 backgroundColor: isSelected 
                                   ? `${color}20` 
@@ -625,9 +634,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                                 color: currentTheme.colors.textPrimary
                               }}
                             >
-                              <div className="font-medium text-sm">{label}</div>
+                              <div className="font-semibold text-base">{label}</div>
                               <div 
-                                className="text-xs mt-1"
+                                className="text-sm mt-2"
                                 style={{ color: currentTheme.colors.textSecondary }}
                               >
                                 {description}
@@ -642,11 +651,11 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
               </div>
 
               {/* Right Column */}
-              <div className="space-y-6">
+              <div className="space-y-8 flex flex-col h-full">
                 
                 {/* Pressure Set Point */}
                 {shouldShowPressureConfig() && (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), minHeight: '300px'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -738,7 +747,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                 
                 {/* O2 Delivery Method */}
                 {shouldShowO2DeliveryConfig() && (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), minHeight: '200px'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -757,7 +766,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                     <div className="space-y-2">
                       <button
                         onClick={() => updateO2Delivery(true)}
-                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
                           backgroundColor: plcStatus?.modes?.continuous_o2_flag 
                             ? `${currentTheme.colors.brand}20` 
@@ -766,9 +775,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                           color: currentTheme.colors.textPrimary
                         }}
                       >
-                        <div className="font-medium text-sm">Continuous O2</div>
+                        <div className="font-semibold text-base">Continuous O2</div>
                         <div 
-                          className="text-xs mt-1"
+                          className="text-sm mt-2"
                           style={{ color: currentTheme.colors.textSecondary }}
                         >
                           Constant oxygen flow throughout session
@@ -777,7 +786,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                       <button
                         onClick={() => updateO2Delivery(false)}
-                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
                           backgroundColor: plcStatus?.modes?.intermittent_o2_flag 
                             ? `${currentTheme.colors.brand}20` 
@@ -786,9 +795,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                           color: currentTheme.colors.textPrimary
                         }}
                       >
-                        <div className="font-medium text-sm">Intermittent O2</div>
+                        <div className="font-semibold text-base">Intermittent O2</div>
                         <div 
-                          className="text-xs mt-1"
+                          className="text-sm mt-2"
                           style={{ color: currentTheme.colors.textSecondary }}
                         >
                           Timed oxygen intervals during session
@@ -800,7 +809,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Session Duration */}
                 {shouldShowDurationConfig() ? (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), minHeight: '300px'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -884,7 +893,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                   </div>
                 ) : (
                   // Show fixed duration for O2genes modes
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), minHeight: '200px'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
