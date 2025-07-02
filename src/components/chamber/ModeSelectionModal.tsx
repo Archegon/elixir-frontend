@@ -541,18 +541,20 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
           flex: 1,
           maxHeight: 'none',
           overflowY: 'auto',
-          overflowX: 'hidden'
+          overflowX: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
         }}>
-          <div className="p-6 h-full">
+          <div className="p-6 flex-1 flex flex-col">
             
             {/* Configuration Grid */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6 flex-1">
               
               {/* Left Column */}
-              <div className="space-y-6">
+              <div className="space-y-6 flex flex-col h-full">
                 
                 {/* Treatment Mode Selection */}
-                <div style={containerStyles.section(currentTheme)}>
+                <div style={{...containerStyles.section(currentTheme), flex: 1}}>
                   <div className="flex items-center gap-3 mb-4">
                     <div 
                       className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -601,7 +603,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Compression Mode */}
                 {shouldShowCompressionConfig() && (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -654,11 +656,11 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
               </div>
 
               {/* Right Column */}
-              <div className="space-y-6">
+              <div className="space-y-6 flex flex-col h-full">
                 
                 {/* Pressure Set Point */}
                 {shouldShowPressureConfig() && (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -750,7 +752,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                 
                 {/* O2 Delivery Method */}
                 {shouldShowO2DeliveryConfig() && (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -812,7 +814,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Session Duration */}
                 {shouldShowDurationConfig() ? (
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -896,7 +898,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                   </div>
                 ) : (
                   // Show fixed duration for O2genes modes
-                  <div style={containerStyles.section(currentTheme)}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
