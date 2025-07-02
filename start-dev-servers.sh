@@ -28,6 +28,32 @@ check_directory() {
 check_directory "$FRONTEND_DIR"
 check_directory "$BACKEND_DIR"
 
+# Function to update repositories
+update_repositories() {
+    echo "🔄 Updating repositories..."
+    
+    # Update Frontend
+    echo "📱 Pulling latest frontend changes..."
+    cd "$FRONTEND_DIR"
+    if git pull origin main; then
+        echo "✅ Frontend updated successfully"
+    else
+        echo "⚠️  Frontend git pull failed - continuing anyway"
+    fi
+    
+    # Update Backend  
+    echo "🔧 Pulling latest backend changes..."
+    cd "$BACKEND_DIR"
+    if git pull origin main; then
+        echo "✅ Backend updated successfully"
+    else
+        echo "⚠️  Backend git pull failed - continuing anyway"
+    fi
+    
+    echo "🔄 Repository updates complete!"
+    echo ""
+}
+
 # Function to start frontend server
 start_frontend() {
     echo "📱 Starting Frontend Server (React/Vite)..."
@@ -123,6 +149,10 @@ echo "📂 Project directories:"
 echo "   Frontend: $FRONTEND_DIR"
 echo "   Backend:  $BACKEND_DIR"
 echo ""
+
+# Update repositories before starting servers
+update_repositories
+
 echo "🎯 Starting servers in parallel..."
 echo "   Press Ctrl+C to stop both servers"
 echo ""
