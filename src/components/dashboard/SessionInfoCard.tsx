@@ -218,6 +218,20 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
     }
   };
 
+  // Equalise handler
+  const handleEqualiseToggle = async () => {
+    if (!isConnected) return;
+    
+    try {
+      const response = await apiService.toggleEqualise();
+      if (!response.success) {
+        console.error('Failed to toggle equalise:', response.message);
+      }
+    } catch (error) {
+      console.error('Error toggling equalise:', error);
+    }
+  };
+
   // Intercom handler
   const handleIntercomToggle = async () => {
     if (!isConnected) return;
@@ -411,15 +425,23 @@ const SessionInfoCard: React.FC<SessionInfoCardProps> = ({ onModeSelect }) => {
           </button>
           
           <button 
-            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            onClick={handleEqualiseToggle}
+            disabled={!isConnected}
+            className="py-2.5 rounded-lg text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: `${currentTheme.colors.warning}15`,
-              color: currentTheme.colors.warning,
-              border: `1px solid ${currentTheme.colors.warning}30`
+              backgroundColor: currentStatus?.session?.equalise_state 
+                ? `${currentTheme.colors.warning}15`
+                : `${currentTheme.colors.warning}15`,
+              color: currentStatus?.session?.equalise_state 
+                ? currentTheme.colors.warning
+                : currentTheme.colors.warning,
+              border: `1px solid ${currentStatus?.session?.equalise_state 
+                ? currentTheme.colors.warning + '30'
+                : currentTheme.colors.warning + '30'}`
             }}
           >
             <Gauge size={14} />
-            <span>Equalise</span>
+            <span>{currentStatus?.session?.equalise_state ? 'Resume' : 'Equalise'}</span>
           </button>
           
           <button 

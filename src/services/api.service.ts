@@ -413,7 +413,11 @@ class ApiService {
   }
 
   async endSession(): Promise<ApiResponse> {
-    return this.executeCommand(API_ENDPOINTS.SESSION.END, 'session_running', false);
+    return this.executeCommand(API_ENDPOINTS.SESSION.END, 'session.end_session');
+  }
+
+  async toggleEqualise(): Promise<ApiResponse> {
+    return this.executeCommand(API_ENDPOINTS.SESSION.EQUALISE, 'session.equalise_state');
   }
 
   // Pressure Control with Optimistic Updates

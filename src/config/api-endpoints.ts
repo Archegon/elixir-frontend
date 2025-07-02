@@ -53,6 +53,7 @@ export const API_ENDPOINTS = {
   SESSION: {
     START: '/api/session/start',
     END: '/api/session/end',
+    EQUALISE: '/api/session/equalise',
     DEPRESSURIZE_CONFIRM: '/api/session/depressurize/confirm',
   },
 
