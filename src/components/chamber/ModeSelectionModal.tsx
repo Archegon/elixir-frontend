@@ -27,9 +27,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
   const { scale, modalRef } = useModalScaling({ 
     isOpen, 
     isVisible,
-    viewportThreshold: 0.98,
-    scaleThreshold: 0.95,
-    minScale: 0.8
+    viewportThreshold: 1.5, // Never trigger scaling (150% threshold)
+    scaleThreshold: 1.0,    // Don't scale down if triggered
+    minScale: 1.0           // Never scale below 100%
   });
   
   // Helper function to convert PLC status to ModeConfiguration
@@ -545,13 +545,13 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
           <div className="p-6 h-full">
             
             {/* Configuration Grid */}
-            <div className="grid grid-cols-2 gap-8 h-full">
+            <div className="grid grid-cols-2 gap-6">
               
               {/* Left Column */}
-              <div className="space-y-8 flex flex-col h-full">
+              <div className="space-y-6">
                 
                 {/* Treatment Mode Selection */}
-                <div style={{...containerStyles.section(currentTheme), flex: 2, display: 'flex', flexDirection: 'column'}}>
+                <div style={containerStyles.section(currentTheme)}>
                   <div className="flex items-center gap-3 mb-4">
                     <div 
                       className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -567,7 +567,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                     </h3>
                   </div>
                   
-                  <div className="space-y-3 flex-1 flex flex-col justify-center">
+                  <div className="space-y-2">
                     {treatmentModes.map(({ key, label, description, color }) => {
                       // Check PLC status directly for accurate mode selection display (like SessionInfoCard does)
                       const isSelected = plcStatus?.modes ? plcStatus.modes[key as keyof typeof plcStatus.modes] : false;
@@ -576,7 +576,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                         <button
                           key={key}
                           onClick={() => updateTreatmentMode(key as TreatmentMode)}
-                          className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                          className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                           style={{
                             backgroundColor: isSelected 
                               ? `${color}20` 
@@ -585,9 +585,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                             color: currentTheme.colors.textPrimary
                           }}
                         >
-                          <div className="font-semibold text-base">{label}</div>
+                          <div className="font-medium text-sm">{label}</div>
                           <div 
-                            className="text-sm mt-2"
+                            className="text-xs mt-1"
                             style={{ color: currentTheme.colors.textSecondary }}
                           >
                             {description}
@@ -600,7 +600,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Compression Mode */}
                 {shouldShowCompressionConfig() && (
-                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
+                  <div style={containerStyles.section(currentTheme)}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -616,7 +616,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                    <div className="space-y-3 flex-1 flex flex-col justify-center">
+                    <div className="space-y-2">
                       {compressionModes
                         .filter(({ key }) => getAvailableCompressionModes().includes(key))
                         .map(({ key, label, description, color }) => {
@@ -627,7 +627,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                             <button
                               key={key}
                               onClick={() => updateCompressionMode(key as CompressionMode)}
-                              className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                              className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                               style={{
                                 backgroundColor: isSelected 
                                   ? `${color}20` 
@@ -636,9 +636,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                                 color: currentTheme.colors.textPrimary
                               }}
                             >
-                              <div className="font-semibold text-base">{label}</div>
+                              <div className="font-medium text-sm">{label}</div>
                               <div 
-                                className="text-sm mt-2"
+                                className="text-xs mt-1"
                                 style={{ color: currentTheme.colors.textSecondary }}
                               >
                                 {description}
@@ -653,11 +653,11 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
               </div>
 
               {/* Right Column */}
-              <div className="space-y-8 flex flex-col h-full">
+              <div className="space-y-6">
                 
                 {/* Pressure Set Point */}
                 {shouldShowPressureConfig() && (
-                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
+                  <div style={containerStyles.section(currentTheme)}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -673,7 +673,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                    <div className="space-y-6 flex-1 flex flex-col justify-center">
+                    <div className="space-y-4">
                         <div className="flex items-center gap-4">
                           <button
                             onClick={decrementPressure}
@@ -749,7 +749,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                 
                 {/* O2 Delivery Method */}
                 {shouldShowO2DeliveryConfig() && (
-                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
+                  <div style={containerStyles.section(currentTheme)}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -765,10 +765,10 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                    <div className="space-y-3 flex-1 flex flex-col justify-center">
+                    <div className="space-y-2">
                       <button
                         onClick={() => updateO2Delivery(true)}
-                        className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
                           backgroundColor: plcStatus?.modes?.continuous_o2_flag 
                             ? `${currentTheme.colors.brand}20` 
@@ -777,9 +777,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                           color: currentTheme.colors.textPrimary
                         }}
                       >
-                        <div className="font-semibold text-base">Continuous O2</div>
+                        <div className="font-medium text-sm">Continuous O2</div>
                         <div 
-                          className="text-sm mt-2"
+                          className="text-xs mt-1"
                           style={{ color: currentTheme.colors.textSecondary }}
                         >
                           Constant oxygen flow throughout session
@@ -788,7 +788,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                       <button
                         onClick={() => updateO2Delivery(false)}
-                        className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         style={{
                           backgroundColor: plcStatus?.modes?.intermittent_o2_flag 
                             ? `${currentTheme.colors.brand}20` 
@@ -797,9 +797,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                           color: currentTheme.colors.textPrimary
                         }}
                       >
-                        <div className="font-semibold text-base">Intermittent O2</div>
+                        <div className="font-medium text-sm">Intermittent O2</div>
                         <div 
-                          className="text-sm mt-2"
+                          className="text-xs mt-1"
                           style={{ color: currentTheme.colors.textSecondary }}
                         >
                           Timed oxygen intervals during session
@@ -811,7 +811,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Session Duration */}
                 {shouldShowDurationConfig() ? (
-                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
+                  <div style={containerStyles.section(currentTheme)}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -827,7 +827,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                    <div className="space-y-6 flex-1 flex flex-col justify-center">
+                    <div className="space-y-4">
                       <div className="flex items-center gap-4">
                           <button
                             onClick={() => updateDuration((plcStatus?.modes?.custom_duration ? plcStatus.modes.custom_duration : config.set_duration) - 5)}
@@ -895,7 +895,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                   </div>
                 ) : (
                   // Show fixed duration for O2genes modes
-                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                  <div style={containerStyles.section(currentTheme)}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
