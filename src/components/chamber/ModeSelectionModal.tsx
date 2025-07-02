@@ -481,7 +481,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
   return (
     <div 
-      className={`fixed inset-0 flex items-center justify-center z-50 transition-all duration-300 ${
+      className={`fixed inset-0 flex items-start justify-center pt-[1vh] z-50 transition-all duration-300 ${
         isAnimating ? 'bg-black/0' : 'bg-black/40 backdrop-blur-sm'
       }`}
       onClick={handleClose}
