@@ -488,7 +488,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     >
       <div 
         ref={modalRef}
-        className={`w-[98vw] max-w-[1600px] h-[95vh] border shadow-2xl backdrop-blur-md transition-all duration-300 ${
+        className={`w-[98vw] max-w-[1600px] h-[98vh] border shadow-2xl backdrop-blur-md transition-all duration-300 ${
           isAnimating ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
         }`}
         style={{
@@ -498,8 +498,8 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          height: '95vh',
-          maxHeight: '95vh'
+          height: '98vh',
+          maxHeight: '98vh'
         }}
         onClick={(e) => e.stopPropagation()}
       >
