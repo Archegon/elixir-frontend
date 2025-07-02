@@ -497,7 +497,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
           transformOrigin: 'center center',
           overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          height: '95vh',
+          maxHeight: '95vh'
         }}
         onClick={(e) => e.stopPropagation()}
       >
