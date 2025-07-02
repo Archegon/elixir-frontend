@@ -87,8 +87,15 @@ class ApiService {
         try {
           const data: PLCStatus = JSON.parse(event.data);
           this.wsStatus = data;
-          this.emit('status-update', data);
-          this.updateControls();
+          
+          // Safely emit status update with error handling
+          try {
+            this.emit('status-update', data);
+            this.updateControls();
+          } catch (error) {
+            console.error('❌ Error in status-update event listeners:', error);
+            // Continue processing even if one listener fails
+          }
         } catch (error) {
           console.error('❌ Failed to parse WebSocket message:', error);
         }
@@ -595,7 +602,8 @@ class ApiService {
     await this.waitForInitialization();
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.PLC.WRITE}/${address}`, {
+      const url = await buildApiUrl(`${API_ENDPOINTS.PLC.WRITE}/${address}`);
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -625,7 +633,8 @@ class ApiService {
     await this.waitForInitialization();
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.PLC.MONITOR.ADD}/${address}`, {
+      const url = await buildApiUrl(`${API_ENDPOINTS.PLC.MONITOR.ADD}/${address}`);
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -648,7 +657,8 @@ class ApiService {
     await this.waitForInitialization();
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.PLC.MONITOR.REMOVE}/${address}`, {
+      const url = await buildApiUrl(`${API_ENDPOINTS.PLC.MONITOR.REMOVE}/${address}`);
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -671,7 +681,8 @@ class ApiService {
     await this.waitForInitialization();
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.PLC.MONITOR.LIST}`, {
+      const url = await buildApiUrl(API_ENDPOINTS.PLC.MONITOR.LIST);
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -713,7 +724,8 @@ class ApiService {
         try {
           callback(data);
         } catch (error) {
-          console.error(`Error in event listener for ${event}:`, error);
+          console.error(`❌ Error in event listener for ${event}:`, error);
+          // Continue with other listeners even if one fails
         }
       });
     }
