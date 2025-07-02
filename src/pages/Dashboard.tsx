@@ -56,6 +56,8 @@ const Dashboard: React.FC = () => {
     compression_fast: false,
     continuous_o2_flag: true,
     intermittent_o2_flag: false,
+    continuous_o2_selection: true,
+    intermittent_o2_selection: false,
     set_duration: 90,
     pressure_set_point: 2.4
   });
@@ -131,51 +133,66 @@ const Dashboard: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-6 overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden">
         
-        {/* Page Header */}
-        <div className="mb-6">
-          <div className="flex items-center space-x-3">
-            <ElixirLogo size="lg" />
-          </div>
-          <div>
-              <p 
-                className="text-sm"
-                style={{ color: currentTheme.colors.textSecondary }}
-              >
-                Hyperbaric Chamber Management
-              </p>
+        {/* Fixed Header Section */}
+        <div className="flex-shrink-0 p-6 pb-0">
+          {/* Page Header */}
+          <div className="mb-6">
+            <div className="flex items-center space-x-3">
+              <ElixirLogo size="lg" />
+            </div>
+            <div>
+                <p 
+                  className="text-sm"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
+                  Hyperbaric Chamber Management
+                </p>
+            </div>
           </div>
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-12 gap-2">
-          
-          {/* Metrics Grid */}
-          <div className="col-span-12">
-            <div className="grid grid-cols-4 gap-4 mb-2">
-              <EnvironmentalReadingsCard 
-                onClimateControl={() => !isPasswordModalOpen && setIsEnvModalOpen(true)} 
-              />
-              <SessionInfoCard 
-                onModeSelect={() => !isPasswordModalOpen && setIsModeModalOpen(true)} 
-              />
-            </div>
-          </div>
-
-          {/* Pressure Chart and Alerts Grid */}
-          <div className="col-span-12">
-            <div className="grid grid-cols-3 gap-4 mb-2">
-              {/* Pressure Chart */}
-              <div className="col-span-2">
-                <PressureChart />
+        {/* Scrollable Content Area */}
+        <div 
+          className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6 scroll-enabled dashboard-content"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            overscrollBehavior: 'contain',
+            scrollBehavior: 'smooth',
+            height: '100%',
+            minHeight: '0'
+          }}
+        >
+          {/* Main Grid */}
+          <div className="grid grid-cols-12 gap-2">
+            
+            {/* Metrics Grid */}
+            <div className="col-span-12">
+              <div className="grid grid-cols-4 gap-4 mb-2">
+                <EnvironmentalReadingsCard 
+                  onClimateControl={() => !isPasswordModalOpen && setIsEnvModalOpen(true)} 
+                />
+                <SessionInfoCard 
+                  onModeSelect={() => !isPasswordModalOpen && setIsModeModalOpen(true)} 
+                />
               </div>
-              <AlertsCard />
             </div>
+
+            {/* Pressure Chart and Alerts Grid */}
+            <div className="col-span-12">
+              <div className="grid grid-cols-3 gap-4 mb-2">
+                {/* Pressure Chart */}
+                <div className="col-span-2">
+                  <PressureChart />
+                </div>
+                <AlertsCard />
+              </div>
+            </div>
+
           </div>
-
         </div>
-
       </main>
 
       {/* Modals */}
