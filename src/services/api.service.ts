@@ -5,7 +5,7 @@
  * Implements WebSocket + HTTP communication pattern with optimistic updates.
  */
 
-import { CONNECTION_CONFIG, buildApiUrl, buildWsUrl, buildApiUrlSync, buildWsUrlSync, discoverBackend, resetDiscovery } from '../config/connection.config';
+import { CONNECTION_CONFIG, buildApiUrl, buildWsUrl, buildApiUrlSync, buildWsUrlSync, discoverBackend, resetDiscovery, getDiscoveryInstance } from '../config/connection.config';
 import { API_ENDPOINTS, WS_ENDPOINTS, type ApiResponse, type PLCStatus } from '../config/api-endpoints';
 
 class ApiService {
@@ -19,6 +19,13 @@ class ApiService {
   private initializationPromise: Promise<void> | null = null;
 
   constructor() {
+    // Forward discovery events from the discovery service
+    const discovery = getDiscoveryInstance();
+    discovery.on('discovery-start', (data: any) => this.emit('discovery-start', data));
+    discovery.on('discovery-complete', (data: any) => this.emit('discovery-complete', data));
+    discovery.on('discovery-progress', (data: any) => this.emit('discovery-progress', data));
+    discovery.on('discovery-failed', (data: any) => this.emit('discovery-failed', data));
+    
     // Initialize with discovery
     this.initializeWithDiscovery();
   }

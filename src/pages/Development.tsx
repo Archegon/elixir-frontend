@@ -7,6 +7,7 @@ import ElixirLogo from '../components/ui/ElixirLogo';
 import { apiService } from '../services/api.service';
 import type { PLCStatus } from '../config/api-endpoints';
 import { useBackendConnection } from '../hooks/useBackendConnection';
+import { getDiscoveryStats, resetDiscovery } from '../config/connection.config';
 
 interface CustomAddress {
   id: string;
@@ -16,6 +17,16 @@ interface CustomAddress {
   error?: string;
 }
 
+interface DiscoveryInfo {
+  isDiscovering: boolean;
+  currentIP: string;
+  testedIPs: string[];
+  totalIPs: number;
+  progress: number;
+  discoveredUrl?: string;
+  cacheSize: number;
+}
+
 const Development: React.FC = () => {
   const { currentTheme } = useTheme();
   const scaleFactor = useScaling();
@@ -23,6 +34,16 @@ const Development: React.FC = () => {
   const [plcData, setPLCData] = useState<PLCStatus | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<boolean>(false);
+
+  // Discovery tracking state
+  const [discoveryInfo, setDiscoveryInfo] = useState<DiscoveryInfo>({
+    isDiscovering: false,
+    currentIP: '',
+    testedIPs: [],
+    totalIPs: 0,
+    progress: 0,
+    cacheSize: 0
+  });
 
   // Custom address monitoring state
   const [customAddresses, setCustomAddresses] = useState<CustomAddress[]>([]);
@@ -51,9 +72,42 @@ const Development: React.FC = () => {
       setConnectionStatus(status.connected);
     };
 
+    // Discovery event listeners
+    const handleDiscoveryStart = () => {
+      setDiscoveryInfo(prev => ({ ...prev, isDiscovering: true, progress: 0 }));
+    };
+
+    const handleDiscoveryComplete = (data: { apiUrl: string; wsUrl: string }) => {
+      setDiscoveryInfo(prev => ({ 
+        ...prev, 
+        isDiscovering: false, 
+        discoveredUrl: data.apiUrl,
+        progress: 100 
+      }));
+    };
+
+    const handleDiscoveryProgress = (data: { currentIP: string; testedIPs: string[]; totalIPs: number }) => {
+      const progress = (data.testedIPs.length / data.totalIPs) * 100;
+      setDiscoveryInfo(prev => ({ 
+        ...prev, 
+        currentIP: data.currentIP,
+        testedIPs: data.testedIPs,
+        totalIPs: data.totalIPs,
+        progress 
+      }));
+    };
+
+    const handleDiscoveryFailed = () => {
+      setDiscoveryInfo(prev => ({ ...prev, isDiscovering: false }));
+    };
+
     apiService.on('status-update', handleStatusUpdate);
     apiService.on('connected', handleConnectionChange);
     apiService.on('disconnected', handleConnectionChange);
+    apiService.on('discovery-start', handleDiscoveryStart);
+    apiService.on('discovery-complete', handleDiscoveryComplete);
+    apiService.on('discovery-progress', handleDiscoveryProgress);
+    apiService.on('discovery-failed', handleDiscoveryFailed);
 
     // Get initial status
     const initialStatus = apiService.getSystemStatus();
@@ -63,10 +117,18 @@ const Development: React.FC = () => {
     }
     setConnectionStatus(apiService.getConnectionStatus());
 
+    // Get initial discovery stats
+    const stats = getDiscoveryStats();
+    setDiscoveryInfo(prev => ({ ...prev, cacheSize: stats.cacheSize }));
+
     return () => {
       apiService.off('status-update', handleStatusUpdate);
       apiService.off('connected', handleConnectionChange);
       apiService.off('disconnected', handleConnectionChange);
+      apiService.off('discovery-start', handleDiscoveryStart);
+      apiService.off('discovery-complete', handleDiscoveryComplete);
+      apiService.off('discovery-progress', handleDiscoveryProgress);
+      apiService.off('discovery-failed', handleDiscoveryFailed);
     };
   }, []);
 
@@ -395,6 +457,97 @@ const Development: React.FC = () => {
                 Last updated: {lastUpdated.toLocaleTimeString()}
               </span>
             )}
+          </div>
+
+          {/* Discovery Status */}
+          <div
+            className="rounded-xl p-4 mb-6"
+            style={{
+              backgroundColor: `${currentTheme.colors.info}10`,
+              border: `1px solid ${currentTheme.colors.info}30`
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3
+                className="text-sm font-semibold"
+                style={{ color: currentTheme.colors.info }}
+              >
+                🔍 Backend Discovery Status
+              </h3>
+              <button
+                onClick={() => {
+                  resetDiscovery();
+                  apiService.reconnectWithDiscovery();
+                }}
+                className="px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                style={{
+                  backgroundColor: `${currentTheme.colors.info}20`,
+                  border: `1px solid ${currentTheme.colors.info}40`,
+                  color: currentTheme.colors.info
+                }}
+              >
+                Retry Discovery
+              </button>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span style={{ color: currentTheme.colors.textSecondary }}>Status:</span>
+                <span style={{ color: currentTheme.colors.textPrimary }}>
+                  {discoveryInfo.isDiscovering ? '🔍 Discovering...' : '✅ Discovery Complete'}
+                </span>
+              </div>
+              
+              {discoveryInfo.discoveredUrl && (
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Discovered URL:</span>
+                  <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.discoveredUrl}
+                  </span>
+                </div>
+              )}
+              
+              <div className="flex justify-between text-sm">
+                <span style={{ color: currentTheme.colors.textSecondary }}>Cache Size:</span>
+                <span style={{ color: currentTheme.colors.textPrimary }}>
+                  {discoveryInfo.cacheSize} entries
+                </span>
+              </div>
+              
+              {discoveryInfo.isDiscovering && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Current IP:</span>
+                    <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.currentIP || 'Testing...'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Progress:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.testedIPs.length} / {discoveryInfo.totalIPs} ({discoveryInfo.progress.toFixed(1)}%)
+                    </span>
+                  </div>
+                  
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${discoveryInfo.progress}%`,
+                        backgroundColor: currentTheme.colors.info
+                      }}
+                    />
+                  </div>
+                  
+                  {discoveryInfo.testedIPs.length > 0 && (
+                    <div className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                      Recently tested: {discoveryInfo.testedIPs.slice(-3).join(', ')}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
 

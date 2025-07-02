@@ -29,8 +29,8 @@ export const DISCOVERY_CONFIG = {
   // Default backend port (configurable via env)
   BACKEND_PORT: getEnvNumber('VITE_BACKEND_PORT', 8000),
   
-  // Connection check timeout per attempt
-  CHECK_TIMEOUT: getEnvNumber('VITE_DISCOVERY_TIMEOUT', 2000),
+  // Connection check timeout per attempt (reduced for faster discovery)
+  CHECK_TIMEOUT: getEnvNumber('VITE_DISCOVERY_TIMEOUT', 1000),
   
   // Enable automatic discovery (can be disabled via env)
   ENABLED: getEnvBoolean('VITE_AUTO_DISCOVERY', true),
@@ -41,8 +41,8 @@ export const DISCOVERY_CONFIG = {
     START: getEnvNumber('VITE_SCAN_START', 1),
     END: getEnvNumber('VITE_SCAN_END', 254),
     
-    // Maximum concurrent scans to avoid overwhelming the network
-    MAX_CONCURRENT: getEnvNumber('VITE_MAX_CONCURRENT_SCANS', 20),
+    // Maximum concurrent scans (increased for faster discovery)
+    MAX_CONCURRENT: getEnvNumber('VITE_MAX_CONCURRENT_SCANS', 50),
     
     // Common subnets to scan (only 192.168.x.x private networks)
     COMMON_SUBNETS: [
@@ -59,7 +59,7 @@ export const DISCOVERY_CONFIG = {
     ],
     
     // Skip scanning entire range if true (use only common IPs)
-    QUICK_SCAN_ONLY: getEnvBoolean('VITE_QUICK_SCAN_ONLY', false),
+    QUICK_SCAN_ONLY: getEnvBoolean('VITE_QUICK_SCAN_ONLY', true),
   },
   
   // Backend verification configuration
@@ -92,12 +92,39 @@ class BackendDiscovery {
   private isDiscovering = false;
   private discoveryCache: Map<string, { valid: boolean; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 300000; // 5 minutes
+  private eventListeners: Record<string, Function[]> = {};
 
   static getInstance(): BackendDiscovery {
     if (!this.instance) {
       this.instance = new BackendDiscovery();
     }
     return this.instance;
+  }
+
+  // Event system for discovery progress
+  on(event: string, callback: Function): void {
+    if (!this.eventListeners[event]) {
+      this.eventListeners[event] = [];
+    }
+    this.eventListeners[event].push(callback);
+  }
+
+  off(event: string, callback: Function): void {
+    if (this.eventListeners[event]) {
+      this.eventListeners[event] = this.eventListeners[event].filter(cb => cb !== callback);
+    }
+  }
+
+  private emit(event: string, data?: any): void {
+    if (this.eventListeners[event]) {
+      this.eventListeners[event].forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in discovery event listener for ${event}:`, error);
+        }
+      });
+    }
   }
 
   async discoverBackend(): Promise<{ apiUrl: string; wsUrl: string }> {
@@ -122,6 +149,7 @@ class BackendDiscovery {
     }
 
     this.isDiscovering = true;
+    this.emit('discovery-start');
 
     try {
       // First try explicit environment variables if set
@@ -135,6 +163,7 @@ class BackendDiscovery {
           const result = { apiUrl: explicitApiUrl, wsUrl: explicitWsUrl };
           this.discoveredBaseUrl = explicitApiUrl;
           this.discoveredWsUrl = explicitWsUrl;
+          this.emit('discovery-complete', result);
           return result;
         } else {
           console.warn('⚠️ Explicit backend URL failed verification, falling back to discovery');
@@ -150,6 +179,7 @@ class BackendDiscovery {
         };
         this.discoveredBaseUrl = result.apiUrl;
         this.discoveredWsUrl = result.wsUrl;
+        this.emit('discovery-complete', result);
         return result;
       }
 
@@ -159,7 +189,7 @@ class BackendDiscovery {
       const candidateUrls = await this.getCandidateUrls();
       console.log(`📡 Testing ${candidateUrls.length} potential backend URLs...`);
       
-      // Test URLs with concurrency control
+      // Test URLs with concurrency control and progress tracking
       const validUrl = await this.testUrlsConcurrently(candidateUrls);
       
       if (validUrl) {
@@ -170,7 +200,9 @@ class BackendDiscovery {
         this.discoveredBaseUrl = apiUrl;
         this.discoveredWsUrl = wsUrl;
         
-        return { apiUrl, wsUrl };
+        const result = { apiUrl, wsUrl };
+        this.emit('discovery-complete', result);
+        return result;
       }
 
       // If discovery fails, use fallback
@@ -182,8 +214,13 @@ class BackendDiscovery {
       };
       this.discoveredBaseUrl = result.apiUrl;
       this.discoveredWsUrl = result.wsUrl;
+      this.emit('discovery-complete', result);
       return result;
 
+    } catch (error) {
+      console.error('❌ Discovery failed:', error);
+      this.emit('discovery-failed', { error });
+      throw error;
     } finally {
       this.isDiscovering = false;
     }
@@ -275,9 +312,24 @@ class BackendDiscovery {
   private async testUrlsConcurrently(urls: string[]): Promise<string | null> {
     const maxConcurrent = DISCOVERY_CONFIG.SCAN_RANGE.MAX_CONCURRENT;
     const chunks = this.chunkArray(urls, maxConcurrent);
+    const testedIPs: string[] = [];
+    const totalIPs = urls.length;
     
     for (const chunk of chunks) {
-      const promises = chunk.map(url => this.testBackendConnection(url));
+      const promises = chunk.map(async (url) => {
+        const ip = url.replace(/^https?:\/\//, '').split(':')[0];
+        testedIPs.push(ip);
+        
+        // Emit progress update
+        this.emit('discovery-progress', {
+          currentIP: ip,
+          testedIPs: [...testedIPs],
+          totalIPs
+        });
+        
+        return this.testBackendConnection(url);
+      });
+      
       const results = await Promise.allSettled(promises);
       
       for (let i = 0; i < results.length; i++) {
@@ -568,6 +620,7 @@ export const discoverBackend = () => discovery.discoverBackend();
 export const resetDiscovery = () => discovery.reset();
 export const getBackendUrls = () => getDiscoveredUrls();
 export const getDiscoveryStats = () => discovery.getDiscoveryStats();
+export const getDiscoveryInstance = () => discovery;
 
 // Environment utilities
 export const ENV = {
