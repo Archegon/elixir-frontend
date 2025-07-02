@@ -413,9 +413,12 @@ class BackendDiscovery {
     // Check cache first
     const cached = this.discoveryCache.get(url);
     if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+      console.log(`🔍 Using cached result for ${url}: ${cached.valid}`);
       return cached.valid;
     }
 
+    console.log(`🔍 Testing backend connection to: ${url}/health`);
+    
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), DISCOVERY_CONFIG.CHECK_TIMEOUT);
@@ -428,17 +431,26 @@ class BackendDiscovery {
 
       clearTimeout(timeoutId);
 
+      console.log(`🔍 Response from ${url}/health:`, {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText
+      });
+
       if (!response.ok) {
+        console.log(`❌ HTTP error for ${url}: ${response.status} ${response.statusText}`);
         this.discoveryCache.set(url, { valid: false, timestamp: Date.now() });
         return false;
       }
 
       // Verify this is our specific backend service
       const isValid = await this.verifyBackendService(url, response);
+      console.log(`🔍 Verification result for ${url}: ${isValid}`);
       this.discoveryCache.set(url, { valid: isValid, timestamp: Date.now() });
       
       return isValid;
     } catch (error) {
+      console.log(`❌ Connection error for ${url}:`, error);
       this.discoveryCache.set(url, { valid: false, timestamp: Date.now() });
       return false;
     }
@@ -464,10 +476,12 @@ class BackendDiscovery {
       if (!response.ok) return false;
 
       const data = await response.json();
+      console.log(`🔍 Health response data from ${url}:`, data);
       
       // Check for expected service identifier
       if (DISCOVERY_CONFIG.VERIFICATION.EXPECTED_SERVICE) {
         const serviceName = data.service || data.name || data.app;
+        console.log(`🔍 Service check: expected "${DISCOVERY_CONFIG.VERIFICATION.EXPECTED_SERVICE}", got "${serviceName}"`);
         if (!serviceName || !serviceName.toLowerCase().includes(DISCOVERY_CONFIG.VERIFICATION.EXPECTED_SERVICE.toLowerCase())) {
           console.log(`❌ Service verification failed for ${url}: expected "${DISCOVERY_CONFIG.VERIFICATION.EXPECTED_SERVICE}", got "${serviceName}"`);
           return false;
@@ -477,6 +491,7 @@ class BackendDiscovery {
       // Check for expected version pattern
       if (DISCOVERY_CONFIG.VERIFICATION.EXPECTED_VERSION_PATTERN && data.version) {
         const versionRegex = new RegExp(DISCOVERY_CONFIG.VERIFICATION.EXPECTED_VERSION_PATTERN);
+        console.log(`🔍 Version check: expected pattern "${DISCOVERY_CONFIG.VERIFICATION.EXPECTED_VERSION_PATTERN}", got "${data.version}"`);
         if (!versionRegex.test(data.version)) {
           console.log(`❌ Version verification failed for ${url}: expected pattern "${DISCOVERY_CONFIG.VERIFICATION.EXPECTED_VERSION_PATTERN}", got "${data.version}"`);
           return false;
@@ -488,6 +503,7 @@ class BackendDiscovery {
         data.hasOwnProperty(field)
       );
       
+      console.log(`🔍 Field check: expected fields ${DISCOVERY_CONFIG.VERIFICATION.EXPECTED_FIELDS}, available fields:`, Object.keys(data));
       if (!hasRequiredFields) {
         console.log(`❌ Field verification failed for ${url}: missing required fields`);
         return false;
