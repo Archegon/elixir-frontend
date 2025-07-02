@@ -488,7 +488,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
     >
       <div 
         ref={modalRef}
-        className={`w-[1100px] border shadow-2xl backdrop-blur-md transition-all duration-300 ${
+        className={`w-[95vw] max-w-[1400px] max-h-[90vh] border shadow-2xl backdrop-blur-md transition-all duration-300 ${
           isAnimating ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
         }`}
         style={{

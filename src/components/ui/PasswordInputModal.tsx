@@ -358,8 +358,8 @@ const PasswordInputModal: React.FC<PasswordInputModalProps> = ({
       onClose={handleCancel}
       title="PIN Required"
       subtitle={isChangingPassword ? "Change your PIN" : "Enter 3-digit PIN to continue"}
-      width="w-[600px]"
-      height="h-[800px]"
+      width="w-[80vw] max-w-[800px]"
+      height="h-[85vh] max-h-[900px]"
     >
       <div 
         className="p-6 space-y-6"

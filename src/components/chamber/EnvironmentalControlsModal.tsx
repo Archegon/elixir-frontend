@@ -269,8 +269,8 @@ const EnvironmentalControlsModal: React.FC<EnvironmentalControlsModalProps> = ({
       onClose={onClose}
       title="Environmental Controls"
       subtitle="Manage chamber climate and lighting settings"
-      width="w-[900px]"
-      height="max-h-[600px]"
+      width="w-[90vw] max-w-[1200px]"
+      height="max-h-[85vh]"
       footer={footer}
     >
       <div className="p-6">

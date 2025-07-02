@@ -140,8 +140,8 @@ const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ isOpen, onClose
       onClose={onClose}
       title="Theme Selection"
       subtitle="Choose your preferred visual theme"
-      width="w-[900px]"
-      height="max-h-[700px]"
+      width="w-[90vw] max-w-[1200px]"
+      height="max-h-[85vh]"
       footer={footer}
     >
       <div className="p-6">

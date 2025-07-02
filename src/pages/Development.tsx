@@ -136,11 +136,7 @@ const Development: React.FC = () => {
     };
   }, [wsUrl]);
 
-  // Auto-add commonly used addresses on mount
-  useEffect(() => {
-    const commonAddresses = ['M4.0', 'M3.2']; // M4.0 should be true, M3.2 is equalise
-    commonAddresses.forEach((addr) => addCustomAddress(addr));
-  }, []);
+  // No auto-adding of addresses - user can add what they need
 
   // Custom address monitoring functions
   const addCustomAddress = async (address?: string) => {
@@ -149,7 +145,10 @@ const Development: React.FC = () => {
 
     // Check if address already exists
     if (customAddresses.some(addr => addr.address === addressToAdd)) {
-      if (!address) alert('Address already being monitored');
+      if (!address) {
+        setWriteError('Address already being monitored');
+        setTimeout(() => setWriteError(null), 3000);
+      }
       return;
     }
 
@@ -171,7 +170,10 @@ const Development: React.FC = () => {
       console.log(`Added ${addressToAdd} to real-time monitoring`);
     } catch (error) {
       console.error('Failed to add address monitoring:', error);
-      if (!address) alert(`Failed to add monitoring for ${addressToAdd}: ${error}`);
+      if (!address) {
+        setWriteError(`Failed to add monitoring for ${addressToAdd}: ${error}`);
+        setTimeout(() => setWriteError(null), 5000);
+      }
     }
   };
 
@@ -189,7 +191,8 @@ const Development: React.FC = () => {
       console.log(`Removed ${address.address} from monitoring`);
     } catch (error) {
       console.error('Failed to remove address monitoring:', error);
-      alert(`Failed to remove monitoring for ${address.address}: ${error}`);
+      setWriteError(`Failed to remove monitoring for ${address.address}: ${error}`);
+      setTimeout(() => setWriteError(null), 5000);
     }
   };
 
@@ -223,17 +226,18 @@ const Development: React.FC = () => {
       const result = await apiService.writeCustomAddress(writeAddress.trim(), parsedValue);
       
       console.log('Write result:', result);
-      alert(`Successfully wrote ${parsedValue} to ${writeAddress.trim()}`);
       
-      // Clear the form
-      setWriteAddress('');
+      // Clear only the value, keep the address
       setWriteValue('');
+      
+      // Show success message briefly
+      setWriteError(`✅ Successfully wrote ${parsedValue} to ${writeAddress.trim()}`);
+      setTimeout(() => setWriteError(null), 3000);
       
     } catch (error: any) {
       console.error('Write operation failed:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
-      setWriteError(`Write failed: ${errorMessage}`);
-      alert(`Write operation failed: ${errorMessage}`);
+      setWriteError(`❌ Write failed: ${errorMessage}`);
     } finally {
       setIsWriting(false);
     }

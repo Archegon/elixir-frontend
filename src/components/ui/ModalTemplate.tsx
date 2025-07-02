@@ -22,8 +22,8 @@ const ModalTemplate: React.FC<ModalTemplateProps> = ({
   subtitle,
   children,
   footer,
-  width = 'w-[1100px]',
-  height = 'max-h-[80vh]'
+  width = 'w-[95vw] max-w-[1400px]',
+  height = 'max-h-[90vh]'
 }) => {
   const { currentTheme } = useTheme();
   const [isVisible, setIsVisible] = useState(false);
