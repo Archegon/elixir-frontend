@@ -27,9 +27,9 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
   const { scale, modalRef } = useModalScaling({ 
     isOpen, 
     isVisible,
-    viewportThreshold: 0.9,
-    scaleThreshold: 0.8,
-    minScale: 0.6
+    viewportThreshold: 0.98,
+    scaleThreshold: 0.95,
+    minScale: 0.8
   });
   
   // Helper function to convert PLC status to ModeConfiguration
