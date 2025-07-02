@@ -350,6 +350,7 @@ class ApiService {
       intercom: 'control_panel.intercom_state',
       pressure_setpoint: 'pressure.setpoint',
       session_running: 'session.running_state',
+      'session.equalise_state': 'session.equalise_state',
     };
 
     const path = stateMap[controlName];
@@ -420,11 +421,12 @@ class ApiService {
   }
 
   async endSession(): Promise<ApiResponse> {
-    return this.executeCommand(API_ENDPOINTS.SESSION.END, 'session.end_session');
+    return this.executeCommand(API_ENDPOINTS.SESSION.END, 'session_running', false);
   }
 
   async toggleEqualise(): Promise<ApiResponse> {
-    return this.executeCommand(API_ENDPOINTS.SESSION.EQUALISE, 'session.equalise_state');
+    const currentState = this.getCurrentState('session.equalise_state');
+    return this.executeCommand(API_ENDPOINTS.SESSION.EQUALISE, 'session.equalise_state', !currentState);
   }
 
   // Pressure Control with Optimistic Updates
