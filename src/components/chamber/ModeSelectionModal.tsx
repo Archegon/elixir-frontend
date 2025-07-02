@@ -551,7 +551,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
               <div className="space-y-8 flex flex-col h-full">
                 
                 {/* Treatment Mode Selection */}
-                <div style={{...containerStyles.section(currentTheme), flex: 1, minHeight: '400px'}}>
+                <div style={{...containerStyles.section(currentTheme), flex: 2, display: 'flex', flexDirection: 'column'}}>
                   <div className="flex items-center gap-3 mb-4">
                     <div 
                       className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -567,7 +567,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                     </h3>
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-3 flex-1 flex flex-col justify-center">
                     {treatmentModes.map(({ key, label, description, color }) => {
                       // Check PLC status directly for accurate mode selection display (like SessionInfoCard does)
                       const isSelected = plcStatus?.modes ? plcStatus.modes[key as keyof typeof plcStatus.modes] : false;
@@ -600,7 +600,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Compression Mode */}
                 {shouldShowCompressionConfig() && (
-                  <div style={{...containerStyles.section(currentTheme), minHeight: '250px'}}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -616,7 +616,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-3 flex-1 flex flex-col justify-center">
                       {compressionModes
                         .filter(({ key }) => getAvailableCompressionModes().includes(key))
                         .map(({ key, label, description, color }) => {
@@ -657,7 +657,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                 
                 {/* Pressure Set Point */}
                 {shouldShowPressureConfig() && (
-                  <div style={{...containerStyles.section(currentTheme), minHeight: '300px'}}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -673,7 +673,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                                          <div className="space-y-4">
+                    <div className="space-y-6 flex-1 flex flex-col justify-center">
                         <div className="flex items-center gap-4">
                           <button
                             onClick={decrementPressure}
@@ -749,7 +749,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                 
                 {/* O2 Delivery Method */}
                 {shouldShowO2DeliveryConfig() && (
-                  <div style={{...containerStyles.section(currentTheme), minHeight: '200px'}}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -765,7 +765,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-3 flex-1 flex flex-col justify-center">
                       <button
                         onClick={() => updateO2Delivery(true)}
                         className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
@@ -811,7 +811,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
 
                 {/* Session Duration */}
                 {shouldShowDurationConfig() ? (
-                  <div style={{...containerStyles.section(currentTheme), minHeight: '300px'}}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -827,8 +827,8 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                       </h3>
                     </div>
                     
-                    <div className="space-y-4">
-                                              <div className="flex items-center gap-4">
+                    <div className="space-y-6 flex-1 flex flex-col justify-center">
+                      <div className="flex items-center gap-4">
                           <button
                             onClick={() => updateDuration((plcStatus?.modes?.custom_duration ? plcStatus.modes.custom_duration : config.set_duration) - 5)}
                             className="w-10 h-10 rounded-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
@@ -895,7 +895,7 @@ const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({
                   </div>
                 ) : (
                   // Show fixed duration for O2genes modes
-                  <div style={{...containerStyles.section(currentTheme), minHeight: '200px'}}>
+                  <div style={{...containerStyles.section(currentTheme), flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                     <div className="flex items-center gap-3 mb-4">
                       <div 
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
