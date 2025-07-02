@@ -149,7 +149,7 @@ class BackendDiscovery {
     }
 
     this.isDiscovering = true;
-    this.emit('discovery-start');
+    this.emit('discovery-start', { method: 'scan' });
 
     try {
       // First try explicit environment variables if set
@@ -158,6 +158,7 @@ class BackendDiscovery {
       
       if (explicitApiUrl && explicitWsUrl) {
         console.log('🎯 Using explicit backend URLs from environment');
+        this.emit('discovery-start', { method: 'explicit' });
         const isValid = await this.verifyBackendService(explicitApiUrl);
         if (isValid) {
           const result = { apiUrl: explicitApiUrl, wsUrl: explicitWsUrl };
@@ -172,6 +173,7 @@ class BackendDiscovery {
 
       if (!DISCOVERY_CONFIG.ENABLED) {
         console.log('🔒 Auto-discovery disabled, using fallback');
+        this.emit('discovery-start', { method: 'fallback' });
         const fallbackUrl = DISCOVERY_CONFIG.FALLBACK_URLS[0];
         const result = { 
           apiUrl: fallbackUrl, 
@@ -320,11 +322,15 @@ class BackendDiscovery {
         const ip = url.replace(/^https?:\/\//, '').split(':')[0];
         testedIPs.push(ip);
         
-        // Emit progress update
+        // Extract subnet from IP for progress tracking
+        const subnet = ip.split('.').slice(0, 3).join('.');
+        
+        // Emit progress update with subnet information
         this.emit('discovery-progress', {
           currentIP: ip,
           testedIPs: [...testedIPs],
-          totalIPs
+          totalIPs,
+          subnet
         });
         
         return this.testBackendConnection(url);

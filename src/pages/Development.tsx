@@ -7,7 +7,7 @@ import ElixirLogo from '../components/ui/ElixirLogo';
 import { apiService } from '../services/api.service';
 import type { PLCStatus } from '../config/api-endpoints';
 import { useBackendConnection } from '../hooks/useBackendConnection';
-import { getDiscoveryStats, resetDiscovery } from '../config/connection.config';
+import { getDiscoveryStats, resetDiscovery, DISCOVERY_CONFIG } from '../config/connection.config';
 
 interface CustomAddress {
   id: string;
@@ -25,6 +25,16 @@ interface DiscoveryInfo {
   progress: number;
   discoveredUrl?: string;
   cacheSize: number;
+  startTime?: Date;
+  elapsedTime?: number;
+  currentSubnet?: string;
+  networkInfo?: {
+    localIP?: string;
+    subnets: string[];
+  };
+  connectionAttempts: number;
+  lastAttemptTime?: Date;
+  discoveryMethod?: 'explicit' | 'fallback' | 'scan';
 }
 
 const Development: React.FC = () => {
@@ -42,7 +52,8 @@ const Development: React.FC = () => {
     testedIPs: [],
     totalIPs: 0,
     progress: 0,
-    cacheSize: 0
+    cacheSize: 0,
+    connectionAttempts: 0
   });
 
   // Custom address monitoring state
@@ -60,6 +71,9 @@ const Development: React.FC = () => {
   const [wsConnected, setWsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  
+  // Real-time timer for discovery progress
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     // Subscribe to PLC status updates from the main apiService
@@ -73,8 +87,16 @@ const Development: React.FC = () => {
     };
 
     // Discovery event listeners
-    const handleDiscoveryStart = () => {
-      setDiscoveryInfo(prev => ({ ...prev, isDiscovering: true, progress: 0 }));
+    const handleDiscoveryStart = (data?: any) => {
+      setDiscoveryInfo(prev => ({ 
+        ...prev, 
+        isDiscovering: true, 
+        progress: 0,
+        startTime: new Date(),
+        connectionAttempts: prev.connectionAttempts + 1,
+        lastAttemptTime: new Date(),
+        discoveryMethod: data?.method || 'scan'
+      }));
     };
 
     const handleDiscoveryComplete = (data: { apiUrl: string; wsUrl: string }) => {
@@ -82,23 +104,30 @@ const Development: React.FC = () => {
         ...prev, 
         isDiscovering: false, 
         discoveredUrl: data.apiUrl,
-        progress: 100 
+        progress: 100,
+        elapsedTime: prev.startTime ? Date.now() - prev.startTime.getTime() : undefined
       }));
     };
 
-    const handleDiscoveryProgress = (data: { currentIP: string; testedIPs: string[]; totalIPs: number }) => {
+    const handleDiscoveryProgress = (data: { currentIP: string; testedIPs: string[]; totalIPs: number; subnet?: string }) => {
       const progress = (data.testedIPs.length / data.totalIPs) * 100;
       setDiscoveryInfo(prev => ({ 
         ...prev, 
         currentIP: data.currentIP,
         testedIPs: data.testedIPs,
         totalIPs: data.totalIPs,
-        progress 
+        progress,
+        currentSubnet: data.subnet,
+        elapsedTime: prev.startTime ? Date.now() - prev.startTime.getTime() : undefined
       }));
     };
 
     const handleDiscoveryFailed = () => {
-      setDiscoveryInfo(prev => ({ ...prev, isDiscovering: false }));
+      setDiscoveryInfo(prev => ({ 
+        ...prev, 
+        isDiscovering: false,
+        elapsedTime: prev.startTime ? Date.now() - prev.startTime.getTime() : undefined
+      }));
     };
 
     apiService.on('status-update', handleStatusUpdate);
@@ -130,6 +159,27 @@ const Development: React.FC = () => {
       apiService.off('discovery-progress', handleDiscoveryProgress);
       apiService.off('discovery-failed', handleDiscoveryFailed);
     };
+  }, []);
+
+  // Real-time timer for discovery progress
+  useEffect(() => {
+    if (!discoveryInfo.isDiscovering || !discoveryInfo.startTime) return;
+
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 100); // Update every 100ms for smooth progress
+
+    return () => clearInterval(timer);
+  }, [discoveryInfo.isDiscovering, discoveryInfo.startTime]);
+
+  // Get network information on mount
+  useEffect(() => {
+    const loadNetworkInfo = async () => {
+      const networkInfo = await getNetworkInfo();
+      setDiscoveryInfo(prev => ({ ...prev, networkInfo }));
+    };
+    
+    loadNetworkInfo();
   }, []);
 
   // WebSocket connection management for custom address monitoring
@@ -201,6 +251,57 @@ const Development: React.FC = () => {
   // No auto-adding of addresses - user can add what they need
 
   // Custom address monitoring functions
+  // Get network information for discovery
+  const getNetworkInfo = async () => {
+    try {
+      // Get local IP using WebRTC
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+
+      return new Promise<{ localIP?: string; subnets: string[] }>((resolve) => {
+        let resolved = false;
+        
+        pc.onicecandidate = (event) => {
+          if (!resolved && event.candidate) {
+            const candidate = event.candidate.candidate;
+            const match = candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+            if (match && !match[1].startsWith('127.') && !match[1].startsWith('169.254.')) {
+              resolved = true;
+              pc.close();
+              const localIP = match[1];
+              const subnet = localIP.split('.').slice(0, 3).join('.');
+              resolve({ 
+                localIP, 
+                subnets: [subnet, ...DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS]
+              });
+            }
+          }
+        };
+
+        pc.createDataChannel('');
+        pc.createOffer().then(offer => pc.setLocalDescription(offer));
+
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            pc.close();
+            resolve({ 
+              localIP: undefined, 
+              subnets: DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS 
+            });
+          }
+        }, 3000);
+      });
+    } catch (error) {
+      console.warn('Failed to get network info:', error);
+      return { 
+        localIP: undefined, 
+        subnets: DISCOVERY_CONFIG.SCAN_RANGE.COMMON_SUBNETS 
+      };
+    }
+  };
+
   const addCustomAddress = async (address?: string) => {
     const addressToAdd = address || newAddress.trim();
     if (!addressToAdd) return;
@@ -490,14 +591,65 @@ const Development: React.FC = () => {
               </button>
             </div>
             
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span style={{ color: currentTheme.colors.textSecondary }}>Status:</span>
-                <span style={{ color: currentTheme.colors.textPrimary }}>
-                  {discoveryInfo.isDiscovering ? '🔍 Discovering...' : '✅ Discovery Complete'}
-                </span>
+            <div className="space-y-3">
+              {/* Status and Method */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Status:</span>
+                  <span style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.isDiscovering ? '🔍 Discovering...' : '✅ Discovery Complete'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Method:</span>
+                  <span style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.discoveryMethod || 'Unknown'}
+                  </span>
+                </div>
               </div>
               
+              {/* Timing Information */}
+              {discoveryInfo.startTime && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Started:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.startTime.toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Elapsed:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.startTime ? 
+                        ((currentTime.getTime() - discoveryInfo.startTime.getTime()) / 1000).toFixed(1) + 's' : 
+                        discoveryInfo.elapsedTime ? 
+                        (discoveryInfo.elapsedTime / 1000).toFixed(1) + 's' : 
+                        '0.0s'
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Connection Attempts */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: currentTheme.colors.textSecondary }}>Attempts:</span>
+                  <span style={{ color: currentTheme.colors.textPrimary }}>
+                    {discoveryInfo.connectionAttempts}
+                  </span>
+                </div>
+                {discoveryInfo.lastAttemptTime && (
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Last Attempt:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {discoveryInfo.lastAttemptTime.toLocaleTimeString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Discovered URL */}
               {discoveryInfo.discoveredUrl && (
                 <div className="flex justify-between text-sm">
                   <span style={{ color: currentTheme.colors.textSecondary }}>Discovered URL:</span>
@@ -507,6 +659,69 @@ const Development: React.FC = () => {
                 </div>
               )}
               
+              {/* Network Information */}
+              {discoveryInfo.networkInfo && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                    Network Information:
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>Local IP:</span>
+                      <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.networkInfo.localIP || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>Subnets:</span>
+                      <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.networkInfo.subnets.length}
+                      </span>
+                    </div>
+                  </div>
+                  {discoveryInfo.networkInfo.subnets.length > 0 && (
+                    <div className="text-xs font-mono" style={{ color: currentTheme.colors.textSecondary }}>
+                      Scanning: {discoveryInfo.networkInfo.subnets.slice(0, 3).join(', ')}
+                      {discoveryInfo.networkInfo.subnets.length > 3 && '...'}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Discovery Configuration */}
+              <div className="space-y-2">
+                <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                  Discovery Configuration:
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Port:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.BACKEND_PORT}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Timeout:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.CHECK_TIMEOUT}ms
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Concurrent:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.SCAN_RANGE.MAX_CONCURRENT}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: currentTheme.colors.textSecondary }}>Quick Scan:</span>
+                    <span style={{ color: currentTheme.colors.textPrimary }}>
+                      {DISCOVERY_CONFIG.SCAN_RANGE.QUICK_SCAN_ONLY ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Cache Information */}
               <div className="flex justify-between text-sm">
                 <span style={{ color: currentTheme.colors.textSecondary }}>Cache Size:</span>
                 <span style={{ color: currentTheme.colors.textPrimary }}>
@@ -514,35 +729,83 @@ const Development: React.FC = () => {
                 </span>
               </div>
               
+              {/* Real-time Discovery Progress */}
               {discoveryInfo.isDiscovering && (
                 <>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Current IP:</span>
-                    <span className="font-mono text-xs" style={{ color: currentTheme.colors.textPrimary }}>
-                      {discoveryInfo.currentIP || 'Testing...'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: currentTheme.colors.textSecondary }}>Progress:</span>
-                    <span style={{ color: currentTheme.colors.textPrimary }}>
-                      {discoveryInfo.testedIPs.length} / {discoveryInfo.totalIPs} ({discoveryInfo.progress.toFixed(1)}%)
-                    </span>
-                  </div>
-                  
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  {/* Current IP and Subnet */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                      Currently Testing:
+                    </div>
                     <div 
-                      className="h-2 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${discoveryInfo.progress}%`,
-                        backgroundColor: currentTheme.colors.info
+                      className="p-2 rounded-lg font-mono text-sm text-center animate-pulse"
+                      style={{
+                        backgroundColor: `${currentTheme.colors.info}20`,
+                        border: `1px solid ${currentTheme.colors.info}40`,
+                        color: currentTheme.colors.info
                       }}
-                    />
+                    >
+                      {discoveryInfo.currentIP || 'Testing...'}
+                    </div>
+                    {discoveryInfo.currentSubnet && (
+                      <div className="text-xs text-center" style={{ color: currentTheme.colors.textSecondary }}>
+                        Subnet: {discoveryInfo.currentSubnet}
+                      </div>
+                    )}
                   </div>
                   
+                  {/* Progress Bar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>Progress:</span>
+                      <span style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.testedIPs.length} / {discoveryInfo.totalIPs} ({discoveryInfo.progress.toFixed(1)}%)
+                      </span>
+                    </div>
+                    
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${discoveryInfo.progress}%`,
+                          backgroundColor: currentTheme.colors.info
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Connection Speed */}
+                    {discoveryInfo.startTime && discoveryInfo.testedIPs.length > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span style={{ color: currentTheme.colors.textSecondary }}>Speed:</span>
+                        <span style={{ color: currentTheme.colors.textPrimary }}>
+                          {((discoveryInfo.testedIPs.length / ((currentTime.getTime() - discoveryInfo.startTime.getTime()) / 1000)) || 0).toFixed(1)} IPs/sec
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Recently Tested IPs */}
                   {discoveryInfo.testedIPs.length > 0 && (
-                    <div className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
-                      Recently tested: {discoveryInfo.testedIPs.slice(-3).join(', ')}
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+                        Recently Tested IPs:
+                      </div>
+                      <div className="text-xs font-mono" style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.testedIPs.slice(-5).join(' → ')}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Estimated Time Remaining */}
+                  {discoveryInfo.startTime && discoveryInfo.progress > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: currentTheme.colors.textSecondary }}>ETA:</span>
+                      <span style={{ color: currentTheme.colors.textPrimary }}>
+                        {discoveryInfo.progress < 100 ? 
+                          `${(((currentTime.getTime() - discoveryInfo.startTime.getTime()) / discoveryInfo.progress) * (100 - discoveryInfo.progress) / 1000).toFixed(1)}s remaining` : 
+                          'Complete'
+                        }
+                      </span>
                     </div>
                   )}
                 </>
